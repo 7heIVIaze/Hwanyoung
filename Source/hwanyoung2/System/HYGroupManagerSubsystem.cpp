@@ -2,9 +2,9 @@
 
 #include "HYGroupManagerSubsystem.h"
 
-#include "Character/HYAggroNPCBase.h"
+#include "HYEnemyBase.h"
 
-void UHYGroupManagerSubsystem::RegisterGroup(AHYAggroNPCBase* Mobs, FName GroupId)
+void UHYGroupManagerSubsystem::RegisterGroup(AHYEnemyBase* Mobs, FName GroupId)
 {
 	Group.FindOrAdd(GroupId).Add(Mobs);
 }
@@ -15,4 +15,9 @@ void UHYGroupManagerSubsystem::NotifyGroupAttacked(FName GroupId, AActor* Attack
 	{
 		Mob->NotifyGroupAttacked(AttackTarget);
 	}
+}
+
+void UHYGroupManagerSubsystem::RemoveFromGroup(AHYEnemyBase* Mobs, FName GroupId)
+{
+	Group[GroupId].Remove(Mobs);
 }
