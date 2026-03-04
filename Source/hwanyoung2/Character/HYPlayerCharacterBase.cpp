@@ -670,6 +670,7 @@ void AHYPlayerCharacterBase::DashFinished()
 
 void AHYPlayerCharacterBase::OnTeleport(FVector Value)
 {
+	GetActorLocation();
 	for (auto DissolveMat : DissolveMeshMaterial)
 	{
 		DissolveMat->SetScalarParameterValue(TEXT("Dissolve"), Value.X);

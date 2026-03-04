@@ -51,6 +51,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack|Melee")
 	int FirstRockShoot = 1;
 
+	// Rock shot gun(last scatter degree, this value is -30~30)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack|Melee")
+	float LastScatterDegree = 30.0f;
+
 	// Gonggi Stone projectile class
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack|Melee")
 	TSubclassOf<AActor> GonggiClass;

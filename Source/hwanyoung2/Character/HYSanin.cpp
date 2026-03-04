@@ -11,18 +11,26 @@ void AHYSanin::GonggiNori_Implementation()
 	// If the sanin's stack is over than 3
 	if (EnableRockShoot >= 3)
 	{
-		
+		float initialRadius = -LastScatterDegree;
+		float deltaDegree = (LastScatterDegree * 2) / (FirstRockShoot - 1);
+		for (int i = 0; i < FirstRockShoot; ++i)
+		{
+			float CurrentDegree = initialRadius + deltaDegree * i;
+			ShootGonggiStone(CurrentDegree, false);
+		}
+	}
+	else
+	{
 		// Fire one shot to target
 		ShootGonggiStone();
 	}
 
-	// If the combo stack is over than 2
-	if (EnableRockShoot > 2)
-	{
-		// Fire two shots like shot gun
-		ShootGonggiStone(30.0f, false);
-		ShootGonggiStone(-30.0f, false);
-	}
+	//// If the combo stack is over than 2
+	//if (EnableRockShoot > 2)
+	//{
+	//	// Fire two shots like shot gun
+	//	ShootGonggiStone(-30.0f, false);
+	//}
 
 	FTimerHandle ShootDelayTimer;
 
@@ -97,6 +105,7 @@ void AHYSanin::GonggiDamage(AActor* _OtherActor, const FHitResult& _Hit)
 				case 14:
 				{
 					EnableRockShoot = 3;
+					FirstRockShoot = 3;
 					break;
 				}
 				case 28:

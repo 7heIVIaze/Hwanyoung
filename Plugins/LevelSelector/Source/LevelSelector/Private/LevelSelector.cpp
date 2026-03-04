@@ -113,6 +113,54 @@ void FLevelSelectorModule::PlayButtonClicked()
 	FMessageDialog::Open(EAppMsgType::Ok, DialogText);*/
 }
 
+void FLevelSelectorModule::PlayStandaloneButtonClicked()
+{
+	if (SelectedLevelName.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No level selected to play."));
+		return;
+	}
+
+	const FString LevelToPlay = FString::Printf(TEXT("/Game/Hwanyoung/Levels/%s"), *SelectedLevelName);
+	if (!FPackageName::DoesPackageExist(LevelToPlay))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Level '%s' does not exist."), *LevelToPlay);
+		return;
+	}
+
+	UEditorLoadingAndSavingUtils::LoadMap(LevelToPlay);
+
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+
+	if (GUnrealEd)
+	{
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.WorldType = EPlaySessionWorldType::PlayInEditor;
+		SessionParams.SessionDestination = EPlaySessionDestinationType::NewProcess;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+		GUnrealEd->RequestPlaySession(SessionParams);
+	}
+}
+
+void FLevelSelectorModule::LoadLevelButtonClicked()
+{
+	if (SelectedLevelName.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No level selected to play."));
+		return;
+	}
+
+	const FString LevelToPlay = FString::Printf(TEXT("/Game/Hwanyoung/Levels/%s"), *SelectedLevelName);
+	if (!FPackageName::DoesPackageExist(LevelToPlay))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Level '%s' does not exist."), *LevelToPlay);
+		return;
+	}
+
+	UEditorLoadingAndSavingUtils::LoadMap(LevelToPlay);
+}
+
 void FLevelSelectorModule::RegisterMenus()
 {
 	// Owner will be used for cleanup in call to UToolMenus::UnregisterOwner
@@ -145,6 +193,26 @@ void FLevelSelectorModule::RegisterMenus()
 		);
 
 		Section.AddEntry(PlayButtonEntry);
+
+		FToolMenuEntry PlayStandaloneButtonEntry = FToolMenuEntry::InitToolBarButton(
+			"PlayStandaloneSelectedLevel",
+			FUIAction(FExecuteAction::CreateRaw(this, &FLevelSelectorModule::PlayStandaloneButtonClicked)),
+			LOCTEXT("PlayStandaloneLevel_Label", "Play Level as standalone"),
+			LOCTEXT("PlayStandaloneLevel_Tooltip", "Play selected level as standalone"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PlayInNewProcess")
+		);
+
+		Section.AddEntry(PlayStandaloneButtonEntry);
+
+		FToolMenuEntry LoadButtonEntry = FToolMenuEntry::InitToolBarButton(
+			"LoadSelectedLevel",
+			FUIAction(FExecuteAction::CreateRaw(this, &FLevelSelectorModule::LoadLevelButtonClicked)),
+			LOCTEXT("LoadLevel_Label", "Open Level"),
+			LOCTEXT("LoadLevel_Tooltip", "Open selected level"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.OpenLevel")
+		);
+
+		Section.AddEntry(LoadButtonEntry);
 
 		//{
 		//	FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitToolBarButton(FLevelSelectorCommands::Get().PluginAction));

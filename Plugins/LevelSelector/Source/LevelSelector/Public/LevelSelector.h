@@ -22,6 +22,10 @@ public:
 
 	/** This function will be bound to Command. */
 	void PlayButtonClicked();
+
+	void PlayStandaloneButtonClicked();
+	void LoadLevelButtonClicked();
+
 	
 public:
 	FString SelectedLevelName;
