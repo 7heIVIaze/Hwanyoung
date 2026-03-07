@@ -19,7 +19,7 @@
 
 ---
 
-https://youtu.be/W61dz_SI_PU
+[![Video Label](http://img.youtube.com/vi/W61dz_SI_PU/0.jpg)](https://youtu.be/W61dz_SI_PU)
 
 📢 이 프로젝트는  **개발 중간에 참여한 프로젝트**입니다. 제가 첫 게임이 모든 것을 혼자 해보고 싶다는 생각이 들어 혼자 제작되었던 만큼, 이번에는 **협업을 통해 프로젝트를 완수해보고 싶다**는 생각으로 참여하여 제작하고 있습니다.
 
@@ -67,7 +67,7 @@ https://drive.google.com/file/d/1exGb48OChXuo8zsAqQY0WxuqpcYkypA3/view?usp=shari
 
 **프로젝트 자체는 Perforce와 AWS EC2를 이용해서 형상관리하고 있습니다.**
 
-![image.png](attachment:1d0dd155-46f2-418a-b32c-47ae547c287a:image.png)
+<img src="{https://github.com/user-attachments/assets/0aa67888-9a6c-4c13-9680-a367f0c2a869}"  width="200" height="400"/>
 
 ## 개발 중 겪었던 난관들
 
