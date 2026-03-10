@@ -21,6 +21,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "System/HYGroupManagerSubsystem.h"
 
+#include "UI/HYHealthBar.h"
+#include "UI/HYDamageAmount.h"
+#include "HYPoolSubSystem.h"
+
 AHYAggroNPCBase::AHYAggroNPCBase()
 {
 	CombatSystem = CreateDefaultSubobject<UHYCombatSystem>(TEXT("Combat System"));
@@ -41,14 +45,14 @@ void AHYAggroNPCBase::BeginPlay()
 	GetLoreDataFromInstance();
 
 	// Set up health bar widget.
-	UUserWidget* NPCHealthBarHUD = CreateWidget<UUserWidget>(this, NPCHealthWidget);
+	UHYHealthBar* NPCHealthBarHUD = CreateWidget<UHYHealthBar>(this, NPCHealthWidget);
 	NPCHealthBarHUD->SetDamagableActor(this);
 	Widget->SetWidget(NPCHealthBarHUD);
 	NPCHealthBarHUD->SetPercentage();
 	Widget->SetVisibility(false);
 
 	// Set up controller instance and current state
-	AICBase = Cast<AHYAggroNPCControllerBase>(UAIBlueprintHelperLibrary::GetAIController(this));
+	AICBase = Cast<AHYAIController>(GetController());
 	SetCharacterState(ECharacterState::None, true);
 
 	UHYGroupManagerSubsystem* GroupManagerSubsystem = GetGameInstance()->GetSubsystem<UHYGroupManagerSubsystem>();
@@ -181,13 +185,15 @@ bool AHYAggroNPCBase::TakeDamageHelper(FDamageInfo DamageInfo, AActor* DamageIns
 
 		UpdateHPBar();
 		
+		auto PoolSystem = GetGameInstance()->GetSubsystem<UHYPoolSubSystem>();
+
+		AActor* SpawnedActor;
+		PoolSystem->SpawnFromPool(DamageAmountClass, GetActorLocation(), GetActorRotation(), SpawnedActor);
 		// Damage Amount inspector
 		FActorSpawnParameters spawnParams;
-		ADamageAmount* DamageAmount = GetWorld()->SpawnActor<ADamageAmount>(DamageAmountClass, 
-			GetActorTransform(), spawnParams);
+		auto DamageAmount = Cast<AHYDamageAmount>(SpawnedActor);
 
-		DamageAmount->SetDamageAmount(DamageInfo.DamageAmount);
-		DamageAmount->SetDamageType(DamageInfo.DamageType);
+		DamageAmount->Initialize(DamageInfo.DamageAmount, DamageInfo.DamageType);
 	}
 
 	return bResult;
@@ -395,7 +401,7 @@ void AHYAggroNPCBase::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
 
 void AHYAggroNPCBase::UpdateHPBar()
 {
-	UUserWidget* NPCHealthBarWidget = Cast<UUserWidget>(Widget->GetUserWidgetObject());
+	UHYHealthBar* NPCHealthBarWidget = Cast<UHYHealthBar>(Widget->GetUserWidgetObject());
 
 	NPCHealthBarWidget->SetPercentage();
 }

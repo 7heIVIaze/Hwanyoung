@@ -1,4 +1,4 @@
-// Copyright 2024. TEAM DAON. All rights reserved.
+// // Copyright 2024. TEAM DAON. All rights reserved.
 
 #pragma once
 
@@ -37,7 +37,7 @@ public:
 	void ReturnToPool(AActor* PoolableActor);
 
 	UFUNCTION(BlueprintCallable, Category = "Pool Subsystem")
-	void InitializePool(TSubclassOf<AActor> PoolClass, int32 MaxSize);
+	void InitializePool(TSubclassOf<AActor> PoolClass, int32 MaxSize, APawn* InstigatorPawn);
 
 private:
 	TMap<UClass*, FPoolArray> ObjectPools;

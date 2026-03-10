@@ -1,4 +1,4 @@
-// Copyright 2024. TEAM DAON. All rights reserved.
+// // Copyright 2024. TEAM DAON. All rights reserved.
 
 #include "HYPoolSubSystem.h"
 #include "Interfaces/Poolable.h"
@@ -23,15 +23,17 @@ void UHYPoolSubSystem::ReturnToPool(AActor* PoolableActor)
 		PoolableActor->SetActorHiddenInGame(true);
 		PoolableActor->SetActorEnableCollision(false);
 		FPoolArray& ObjectPool = ObjectPools.FindOrAdd(ActorClass);
+		UE_LOG(LogTemp, Log, TEXT("Push Object from the pool"));
 		ObjectPool.Add(PoolableActor);
 	}
 	else
 	{
+		UE_LOG(LogTemp, Log, TEXT("Destroy"));
 		PoolableActor->Destroy();
 	}
 }
 
-void UHYPoolSubSystem::InitializePool(TSubclassOf<AActor> PoolClass, int32 MaxSize)
+void UHYPoolSubSystem::InitializePool(TSubclassOf<AActor> PoolClass, int32 MaxSize, APawn* InstigatorPawn)
 {
 	FPoolArray& ObjectPool = ObjectPools.FindOrAdd(PoolClass);
 
@@ -45,6 +47,7 @@ void UHYPoolSubSystem::InitializePool(TSubclassOf<AActor> PoolClass, int32 MaxSi
 
 		if (NewActor && PoolClass.Get()->ImplementsInterface(UPoolable::StaticClass()))
 		{
+			NewActor->SetInstigator(InstigatorPawn);
 			IPoolable::Execute_OnReturnToPool(NewActor);
 			NewActor->SetActorHiddenInGame(true);
 			NewActor->SetActorEnableCollision(false);
@@ -65,7 +68,9 @@ AActor* UHYPoolSubSystem::GetActorFromPool(TSubclassOf<AActor> PoolClass, FVecto
 		{
 			IPoolable::Execute_OnSpawnFromPool(Actor);
 			Actor->SetActorLocationAndRotation(Location, Rotation);
-			//Actor->SetActorHiddenInGame(false);
+			UE_LOG(LogTemp, Log, TEXT("Pop Object from the pool"));
+			Actor->SetActorHiddenInGame(false);
+			Actor->SetActorEnableCollision(true);
 			return Actor;
 		}
 	}
@@ -74,6 +79,7 @@ AActor* UHYPoolSubSystem::GetActorFromPool(TSubclassOf<AActor> PoolClass, FVecto
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	AActor* NewActor = GetWorld()->SpawnActor<AActor>(
 		PoolClass, Location, Rotation, SpawnParams);
+	UE_LOG(LogTemp, Log, TEXT("Spawn Object"));
 
 
 	if (NewActor && PoolClass.Get()->ImplementsInterface(UPoolable::StaticClass()))

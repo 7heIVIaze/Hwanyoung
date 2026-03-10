@@ -23,6 +23,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "System/HYGroupManagerSubsystem.h"
 
+#include "UI/HYHealthBar.h"
+
 AHYPuzzleNPCBase::AHYPuzzleNPCBase()
 {
 	HPSystem = CreateDefaultSubobject<UHYHPSystem>(TEXT("HP System"));
@@ -42,7 +44,7 @@ void AHYPuzzleNPCBase::BeginPlay()
 	InitPuzzleCharacterStates();
 	HPSystem->OnDeath.AddDynamic(this, &AHYPuzzleNPCBase::Death);
 
-	UUserWidget* NPCHealthBarHUD = CreateWidget<UUserWidget>(this, NPCHealthWidget);
+	UHYHealthBar* NPCHealthBarHUD = CreateWidget<UHYHealthBar>(this, NPCHealthWidget);
 	NPCHealthBarHUD->SetDamagableActor(this);
 	Widget->SetWidget(NPCHealthBarHUD);
 	NPCHealthBarHUD->SetPercentage();

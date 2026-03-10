@@ -1,4 +1,4 @@
-// Copyright 2024. TEAM DAON. All rights reserved.
+// // Copyright 2024. TEAM DAON. All rights reserved.
 
 #pragma once
 
@@ -27,10 +27,7 @@ public:
 private:
 	bool bIsActive;
 
-	// Get this actor from the object pool
 	virtual void OnSpawnFromPool_Implementation();
-
-	// Return to the object pool
 	virtual void OnReturnToPool_Implementation();
 
 	bool GetActivate() const { return bIsActive; }

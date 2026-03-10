@@ -276,7 +276,7 @@ public:
 
 	// Damage Amount class for spawning.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource")
-	TSubclassOf<class UUserWidget> DamageAmountClass;
+	TSubclassOf<class AActor> DamageAmountClass;
 	//TSubclassOf<class ADamageAmount> DamageAmountClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource")
