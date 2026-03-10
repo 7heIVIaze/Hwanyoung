@@ -67,7 +67,7 @@ https://drive.google.com/file/d/1exGb48OChXuo8zsAqQY0WxuqpcYkypA3/view?usp=shari
 
 **프로젝트 자체는 Perforce와 AWS EC2를 이용해서 형상관리하고 있습니다.**
 
-<img src="{https://github.com/user-attachments/assets/0aa67888-9a6c-4c13-9680-a367f0c2a869}"  width="200" height="400"/>
+<img width="1920" height="1032" alt="Image" src="https://github.com/user-attachments/assets/0aa67888-9a6c-4c13-9680-a367f0c2a869" />
 
 ## 개발 중 겪었던 난관들
 
