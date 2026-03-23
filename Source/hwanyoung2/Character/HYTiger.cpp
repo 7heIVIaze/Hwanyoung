@@ -52,16 +52,16 @@ void AHYTiger::Tick(float DeltaTime)
 	}
 }
 
-void AHYTiger::Lunge(AActor* _AttackTarget)
+void AHYTiger::Lunge(AActor* AttackTarget)
 {
 	PlayAnimMontage(TigerLungeMontage);
 	
 	AttackAnimStart();
 
-	Target = _AttackTarget;
+	Target = AttackTarget;
 	// Rotate Character to see player
 	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(
-		GetActorLocation(), _AttackTarget->GetActorLocation()));
+		GetActorLocation(), AttackTarget->GetActorLocation()));
 
 	// Change Collision response to overlap player character
 	GetCapsuleComponent()->SetCollisionResponseToChannel(
@@ -71,26 +71,26 @@ void AHYTiger::Lunge(AActor* _AttackTarget)
 
 }
 
-void AHYTiger::OnMontageEnded(UAnimMontage* _Montage, bool _Interrupted)
+void AHYTiger::OnMontageEnded(UAnimMontage* Montage, bool Interrupted)
 {
 	// If died montage
-	if (_Montage == DeathAnimMontage)
+	if (Montage == DeathAnimMontage)
 	{
 		Super::DiedMontageEnded();
 	}
 	// if the last montage is lunge, set attack anim ended.
-	else if (_Montage == TigerLungeMontage)
+	else if (Montage == TigerLungeMontage)
 	{
 		Target = nullptr;
 		AttackAnimEnd();
 	}
 	// if the last montage is roaring, call use ult skill again
-	else if (_Montage == TigerRoarMontage)
+	else if (Montage == TigerRoarMontage)
 	{
 		UseUltSkill(Target);
 	}
 	// if the last montage is bite dash, set attack anim ended.
-	else if (_Montage == TigerBitingMontage)
+	else if (Montage == TigerBitingMontage)
 	{
 		Target = nullptr;
 		AttackAnimEnd();
@@ -129,14 +129,14 @@ void AHYTiger::OnLand(const FHitResult& Hit)
 	OnATKActionCompleted.Broadcast(Target);
 }
 
-void AHYTiger::CrackoftheEarth(AActor* _AttackTarget)
+void AHYTiger::CrackoftheEarth(AActor* AttackTarget)
 {
-	Target = _AttackTarget;
+	Target = AttackTarget;
 	CurrentLocation = GetActorLocation();
 	
 	// Rotate Character to see player
 	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(
-		GetActorLocation(), _AttackTarget->GetActorLocation()));
+		GetActorLocation(), AttackTarget->GetActorLocation()));
 
 	JumpTimeline.PlayFromStart();
 }
@@ -189,26 +189,26 @@ void AHYTiger::TrailDamage(AActor* OtherActor, const FHitResult& Hit)
 	}
 }
 
-void AHYTiger::UseUltSkill(AActor* _AttackTarget)
+void AHYTiger::UseUltSkill(AActor* AttackTarget)
 {
 	Target = nullptr;
 
 	if (bHasActivateUlt)
 	{
-		UltJump(_AttackTarget);
+		UltJump(AttackTarget);
 	}
 	else
 	{
-		Roar(_AttackTarget);
+		Roar(AttackTarget);
 	}
 }
 
-void AHYTiger::Roar(AActor* _AttackTarget)
+void AHYTiger::Roar(AActor* AttackTarget)
 {
 	bHasActivateUlt = true;
 
 	PlayAnimMontage(TigerRoarMontage);
-	Target = _AttackTarget;
+	Target = AttackTarget;
 }
 
 void AHYTiger::OnRoarNotify()
@@ -217,14 +217,14 @@ void AHYTiger::OnRoarNotify()
 	DamageFactor *= 2.0f;
 }
 
-void AHYTiger::UltJump(AActor* _AttackTarget)
+void AHYTiger::UltJump(AActor* AttackTarget)
 {
 	PlayAnimMontage(TigerChargeJumpMontage);
 
 	// Make jump
 	FVector LaunchVelocity, StartLocation, TargetLocation;
 	StartLocation = GetActorLocation();
-	TargetLocation = _AttackTarget->GetActorLocation();
+	TargetLocation = AttackTarget->GetActorLocation();
 	TargetLocation.Z += 200.0f;
 	UGameplayStatics::SuggestProjectileVelocity_CustomArc(this, LaunchVelocity, StartLocation, TargetLocation, 0.0f, 0.75f);
 
@@ -234,7 +234,7 @@ void AHYTiger::UltJump(AActor* _AttackTarget)
 	GetCapsuleComponent()->SetCollisionResponseToChannel(
 		ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
 
-	Target = _AttackTarget;
+	Target = AttackTarget;
 
 	LandedDelegate.AddDynamic(this, &AHYTiger::OnUltLand);
 }
@@ -256,7 +256,7 @@ void AHYTiger::OnUltLand(const FHitResult& Hit)
 	}), 3.0f, false);
 }
 
-void AHYTiger::SpinningSlash(AActor* _AttackTarget)
+void AHYTiger::SpinningSlash(AActor* AttackTarget)
 {
 	PlayAnimMontage(TigerSpinningSlashMontage);
 }
@@ -271,7 +271,7 @@ void AHYTiger::OnSpinningNotified()
 	}), 2.0f, false);
 }
 
-void AHYTiger::Bite(AActor* _AttackTarget)
+void AHYTiger::Bite(AActor* AttackTarget)
 {
 	// to make overlap player character
 	GetCapsuleComponent()->SetCollisionResponseToChannel(
@@ -283,7 +283,7 @@ void AHYTiger::Bite(AActor* _AttackTarget)
 		NS_Trail, GetMesh(), FName("None"),
 		FVector(0.0f), FRotator(0.0f), EAttachLocation::KeepRelativeOffset, true);
 
-	FVector StartLocation = GetActorLocation(), TargetLocation = _AttackTarget->GetActorLocation();
+	FVector StartLocation = GetActorLocation(), TargetLocation = AttackTarget->GetActorLocation();
 
 	FVector DashDirectionSpeed = (TargetLocation - StartLocation).GetSafeNormal(0.0001f) * 2000.0f;
 
@@ -313,11 +313,11 @@ void AHYTiger::OnFinalBiteNotify()
 	TigerBite(false);
 }
 
-void AHYTiger::TigerBite(bool _IsFirstBite)
+void AHYTiger::TigerBite(bool IsFirstBite)
 {
 	FVector StartLocation = GetMesh()->GetComponentLocation();
 	FVector EndLocation = StartLocation + FVector(0.0f, 0.0f, 350.0f);
-	float Radius = _IsFirstBite ? 350.0f : 200.0f;
+	float Radius = IsFirstBite ? 350.0f : 200.0f;
 
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	TEnumAsByte<EObjectTypeQuery> Pawn = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_Pawn);
@@ -334,7 +334,7 @@ void AHYTiger::TigerBite(bool _IsFirstBite)
 	{
 		if (IDamagable* DamagableInterface = Cast<IDamagable>(HitResult.GetActor()))
 		{
-			float DamageAmount = _IsFirstBite ? 35.0f : 50.0f;
+			float DamageAmount = IsFirstBite ? 35.0f : 50.0f;
 			FCrowdControlInfo CrowdControl;
 
 			FDamageInfo DamageInfo(
@@ -344,7 +344,7 @@ void AHYTiger::TigerBite(bool _IsFirstBite)
 			DamagableInterface->TakeDamage(DamageInfo, this, 0.0f, 0.0f, HitResult);
 		}
 
-		if (_IsFirstBite)
+		if (IsFirstBite)
 		{
 			// dash again
 			FVector LaunchVelocity =

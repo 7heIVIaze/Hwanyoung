@@ -48,6 +48,11 @@ void UHYGameInstance::UpdateJournal(FName JournalRowID)
 	SaveData.Journal.Add(JournalRowID);
 }
 
+void UHYGameInstance::UpdateBaseCampHaeTae(FVector FromLocation, FName MapName)
+{
+	SaveData.SavedBaseCampLocation[MapName] = FromLocation;
+}
+
 void UHYGameInstance::GetCharacterSaveData(FName CharacterName)
 {
 	PlayerCharacterName = CharacterName;

@@ -15,7 +15,9 @@ class HWANYOUNG2_API UHYWorldSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-	
-	
+
+#pragma region Teammates
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+#pragma endregion
+
 };

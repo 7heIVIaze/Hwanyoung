@@ -20,6 +20,7 @@ public:
 	//setting up the controller inventory
 	AHYPlayerCharacController();
 
+#pragma region Event Graphs
 protected:
 	virtual void BeginPlay() override;
 
@@ -31,6 +32,7 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void ReloadCraftUI();
+#pragma endregion
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void SaveGameplay();
@@ -62,6 +64,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Utils")
 	FInventoryItem CraftItem(FInventoryItem ItemA);
 
+#pragma endregion
+
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere)
 	class AHYInteractableActor* CurrentInteractable;
 
@@ -88,8 +92,6 @@ public:
 	//interacts with the Interactable objects
 	UFUNCTION(BlueprintCallable, Category = "Utils")
 	void Interact();
-
-#pragma endregion
 
 #pragma region UI
 	// Inventory Widget object(instance)
@@ -181,7 +183,7 @@ public:
 
 	// Toggle the haetae HUD when interacting with the haetae statue
 	UFUNCTION(BlueprintCallable)
-	void ToggleHaetaeStatueHUD(FVector TeleportLocation, FText DescriptionText, bool IsTeleportHaeTae);
+	void ToggleHaetaeStatueHUD(FVector TeleportLocation, FText DescriptionText);
 #pragma endregion
 
 

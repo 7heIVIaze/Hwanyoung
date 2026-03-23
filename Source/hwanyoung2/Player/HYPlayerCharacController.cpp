@@ -220,7 +220,7 @@ void AHYPlayerCharacController::ToggleCookingWidget_Implementation()
 
 void AHYPlayerCharacController::ShowTutorialWidget_Implementation(FName _TutorialName, bool _AddedOnAnotherHUD)
 {
-	if (UHYGameInstance* GameInstance = Cast<UHYGameInstance>(GetGameInstance()))
+	if (UHYGameInstance* GameInstance = GetGameInstance<UHYGameInstance>())
 	{
 		if (GameInstance->GetCheckTutorial()[_TutorialName])
 		{
@@ -241,7 +241,7 @@ void AHYPlayerCharacController::ShowTutorialWidget_Implementation(FName _Tutoria
 
 bool AHYPlayerCharacController::SaveGame()
 {
-	UHYGameInstance* GameInstance = Cast<UHYGameInstance>(GetGameInstance());
+	UHYGameInstance* GameInstance = GetGameInstance<UHYGameInstance>();
 
 	if(nullptr == GameInstance)
 	{
@@ -305,7 +305,7 @@ bool AHYPlayerCharacController::SaveGame()
 bool AHYPlayerCharacController::LoadGameSaveFile()
 {
 	// Get GameInstance
-	UHYGameInstance* GameInstance = Cast<UHYGameInstance>(GetGameInstance());
+	UHYGameInstance* GameInstance = GetGameInstance<UHYGameInstance>();
 
 	if (nullptr == GameInstance)
 	{
@@ -350,7 +350,7 @@ bool AHYPlayerCharacController::LoadGameSaveFile()
 	return true;
 }
 
-void AHYPlayerCharacController::ToggleHaetaeStatueHUD(FVector TeleportLocation, FText DescriptionText, bool IsTeleportHaeTae)
+void AHYPlayerCharacController::ToggleHaetaeStatueHUD(FVector TeleportLocation, FText DescriptionText)
 {
 	if(IsValid(HaeTaeWidget))
 	{
@@ -364,7 +364,6 @@ void AHYPlayerCharacController::ToggleHaetaeStatueHUD(FVector TeleportLocation, 
 	
 	// update variables
 	HaeTaeWidget->TeleportLocation = TeleportLocation;
-	HaeTaeWidget->IsTeleportHaeTae = IsTeleportHaeTae;
 	HaeTaeWidget->DescriptionText = DescriptionText;
 	
 	// Remove Player HUD and add HaeTae HUD

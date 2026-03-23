@@ -55,7 +55,7 @@ public:
 #pragma region Variables
 	// for 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Widget")
-	TObjectPtr<UUserWidget> DamageAmountWidget;
+	TObjectPtr<class UHYWGDamageAmount> DamageAmountWidget;
 
 	// Damage amount
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Damage")

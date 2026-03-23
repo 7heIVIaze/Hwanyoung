@@ -74,7 +74,9 @@ public:
 	// Journal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")
 	TSet<FName> Journal;
-
+	// For Teleport from the base camp save actor
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")
+	TMap<FName, FVector> SavedBaseCampLocation;
 
 public:
 	FSaveData()
@@ -85,18 +87,21 @@ public:
 		, TutorialChecked(TMap<FName, bool>())
 		, SavedBuffItemList(TArray<FInventoryItem>())
 		, Journal(TSet<FName>())
+		, SavedBaseCampLocation(TMap<FName, FVector>())
 	{
 	}
 
-	FSaveData(int _HonbaekAmount, TArray<FInventoryItem> _SavedInventory, TMap<FName, FTransform> _LevelTransform, 
-		TMap<FName, FLore> _LoreData, TMap<FName, bool> _CheckedTutorial, TArray<FInventoryItem> _BuffItemList, TSet<FName> _Journal)
-		: HonbaekAmount(_HonbaekAmount)
-		, SavedInventoryItem(_SavedInventory)
-		, SavedLevelTransform(_LevelTransform)
-		, LoreData(_LoreData)
-		, TutorialChecked(_CheckedTutorial)
-		, SavedBuffItemList(_BuffItemList)
-		, Journal(_Journal)
+	FSaveData(int inHonbaekAmount, TArray<FInventoryItem> inSavedInventory, TMap<FName, FTransform> inLevelTransform,
+		TMap<FName, FLore> inLoreData, TMap<FName, bool> inCheckedTutorial, TArray<FInventoryItem> inBuffItemList,
+		TSet<FName> inJournal, TMap<FName, FVector> inSavedLocation)
+		: HonbaekAmount(inHonbaekAmount)
+		, SavedInventoryItem(inSavedInventory)
+		, SavedLevelTransform(inLevelTransform)
+		, LoreData(inLoreData)
+		, TutorialChecked(inCheckedTutorial)
+		, SavedBuffItemList(inBuffItemList)
+		, Journal(inJournal)
+		, SavedBaseCampLocation(inSavedLocation)
 	{
 	}
 };

@@ -21,38 +21,42 @@ public:
 #pragma region Functions
 	// Update player transform in level to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdatePlayerTransformInLevel(FName _LevelName, FTransform _PlayerTransform);
+	void UpdatePlayerTransformInLevel(FName inLevelName, FTransform inPlayerTransform);
 
 	// Update honbaek amount to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdateHonbaekAmount(int32 _Amount);
+	void UpdateHonbaekAmount(int32 inAmount);
 
 	// Update inventory items to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdateInventoryItems(TArray<FInventoryItem> _InventoryItem);
+	void UpdateInventoryItems(TArray<FInventoryItem> inInventoryItem);
 
 	// Update lore data to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdateLore(FName _BossName, FLore _LoreData);
+	void UpdateLore(FName inBossName, FLore inLoreData);
 
 	// Update checked tutorial to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdateTutorialChecked(FName _TutorialName, bool _IsChecked);
+	void UpdateTutorialChecked(FName inTutorialName, bool inIsChecked);
 
 	// Update buff items to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdateBuffItemList(TArray<FInventoryItem> _BuffItemLists);
+	void UpdateBuffItemList(TArray<FInventoryItem> inBuffItemLists);
 
 	// Update Journal to save data
 	UFUNCTION(BlueprintCallable)
-	void UpdateJournal(FName _JournalRowID);
+	void UpdateJournal(FName inJournalRowID);
+
+	// Update base camp teleport location to save data
+	UFUNCTION(BlueprintCallable)
+	void UpdateBaseCampHaeTae(FVector inFromLocation, FName inMapName);
 
 	// Initialize character name and get its save data
 	UFUNCTION(BlueprintCallable)
-	void GetCharacterSaveData(FName _CharacterName);
+	void GetCharacterSaveData(FName inCharacterName);
 
 	UFUNCTION(BlueprintCallable)
-	void LoadSaveFile(FString _Filename, int32 _UserIndex);
+	void LoadSaveFile(FString inFilename, int32 inUserIndex);
 
 	UFUNCTION(BlueprintCallable)
 	bool SaveFileToSlot();

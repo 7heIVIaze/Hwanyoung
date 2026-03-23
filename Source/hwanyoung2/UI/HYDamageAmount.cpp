@@ -5,6 +5,7 @@
 #include "DataAssets/CombatTypes.h"
 #include "Components/WidgetComponent.h"
 #include "System/HYPoolSubSystem.h"
+#include "HYWGDamageAmount.h"
 
 // Sets default values
 AHYDamageAmount::AHYDamageAmount()
@@ -21,7 +22,7 @@ void AHYDamageAmount::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	DamageAmountWidget = DamageWidget->GetWidget();
+	DamageAmountWidget = Cast<UHYWGDamageAmount>(DamageWidget->GetWidget());
 
 	if (MoveTimelineCurve)
 	{
@@ -52,8 +53,8 @@ void AHYDamageAmount::OnSpawnFromPool_Implementation()
 	Super::OnSpawnFromPool_Implementation();
 
 	// Initialize damage amount and type of the widget.
-	DamageAmountWidget->SetDamageAmount(DamageAmount);
-	DamageAmountWidget->SetDamageType(DamageType);
+	DamageAmountWidget->DamageAmount = DamageAmount;
+	DamageAmountWidget->DamageType = DamageType;
 	StartLocation = GetActorLocation();
 
 	EndLocation = StartLocation + FVector(
