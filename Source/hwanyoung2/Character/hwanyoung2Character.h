@@ -59,6 +59,8 @@ public:
 
 	Ahwanyoung2Character();
 
+	Ahwanyoung2Character(const FObjectInitializer& ObjectInitializer);
+
 	//Updates the AbilitysystemComponent's actorInfo, especially in a multiplayer environment
 	//Gets called on the server (so basically my end)
 	virtual void PossessedBy(AController* NewController) override;
@@ -70,32 +72,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HY_Character|Camera")
 	FVector GetStartingCameraBoomLocation();
 
-	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual void ClimbingLineTrace(bool& _BodyHit, bool& _HeadHit, FHitResult& _BodyHitResult, FHitResult& _HeadHitResult);
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual void ClimbingLineTrace(bool& _BodyHit, bool& _HeadHit, FHitResult& _BodyHitResult, FHitResult& _HeadHitResult);
 
-	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual bool ClimbDownLineTrace();
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual bool ClimbDownLineTrace();
 
-	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual void StopClimbing();
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual void StopClimbing();
 
-	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual void ClimbUpLedge();
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual void ClimbUpLedge();
 
-	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual bool CheckHasReachedFloor();
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual bool CheckHasReachedFloor();
 
-	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual void ToggleClimbing();
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual void ToggleClimbing();
 
 	UFUNCTION(BlueprintNativeEvent, Category = "HY_Character|Climbing")
 	void ClimbDownFromLedge();
 
 	virtual void ClimbDownFromLedge_Implementation();
 
-	// For animation on ended event delegate
+	//// For animation on ended event delegate
+	//UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	//virtual void StartClimbingDown(UAnimMontage* _Montage, bool _Interrupted);
+
 	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
-	virtual void StartClimbingDown(UAnimMontage* _Montage, bool _Interrupted);
+	virtual void TryClimbing();
+
+	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	virtual void StopClimbing();
 
 	UFUNCTION(BlueprintCallable)
 	virtual void UseStamina();
@@ -103,12 +111,25 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void ReplenishStamina();
 
+	UFUNCTION(BlueprintCallable, Category = "HY_Character|Climbing")
+	void ToggleStaminaBar(bool bIsVisibility);
+
+	UFUNCTION(BlueprintCallable, Category = "HY_Character|Interactable")
+	void UpdateInteractionWidget();
+
 	/** Returns CameraBoom subobject **/
 	class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 	virtual void Tick(float DeltaTime) override;
+
+
+	UFUNCTION(BlueprintPure)
+	FORCEINLINE UHYCharacterMovementComponent* GetCustomCharacterMovement() const
+	{
+		return MovementComponent;
+	}
 
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "HY_Character|Stamina")
@@ -160,19 +181,27 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UFUNCTION(BlueprintCallable, Category = "LevelStreaming")
+	void ChangeLevelIndex(FString LevelName);
+
 	// To add mapping context
 	virtual void BeginPlay();
 
-	// Climbing down animation montage
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<class UAnimMontage> ClimbingDownLedgeMontage;
-
-	// Climbing ledge up animation montage
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<class UAnimMontage> ClimbingLedgeUpMontage;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	ELevelID LevelID;
 
 	/*virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID);
-	virtual FGenericTeamId GetGenericTeamId() const;*/
+	virtual FGenericTeamId GetGenericTeamId() const;
+	*/
 
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly)
+	class UHYCharacterMovementComponent* MovementComponent;
+
+	// Interaction widget class
+	UPROPERTY(EditAnywhere, Category="UI", meta =(AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> InteractionWidgetClass;
+
+	UPROPERTY(VisibleAnywhere, Category="UI", meta =(AllowPrivateAccess = "true"))
+	UUserWidget* InteractionWidget;
 };
 

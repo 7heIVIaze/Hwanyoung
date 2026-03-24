@@ -15,6 +15,9 @@
 #include "Interactables/Items/HYAutomaticPickUp.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "System/HYWorldSettings.h"
+#include "HYCharacterMovementComponent.h"
+#include "Blueprint/UserWidget.h"
 //#include "HYPlayerAnimInstance.h"
 
 
@@ -25,7 +28,12 @@ Ahwanyoung2Character::Ahwanyoung2Character()
 	Initialize();
 }
 
-
+Ahwanyoung2Character::Ahwanyoung2Character(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UHYCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
+{
+	Initialize();
+	MovementComponent = Cast<UHYCharacterMovementComponent>(GetCharacterMovement());
+}
 
 void Ahwanyoung2Character::PossessedBy(AController* NewController)
 {
@@ -42,38 +50,19 @@ void Ahwanyoung2Character::PossessedBy(AController* NewController)
 
 void Ahwanyoung2Character::ClimbDownFromLedge_Implementation()
 {
-	// If the character can get down from the ledge
-	if (ClimbDownLineTrace())
-	{
-		ToggleClimbing();
-
-		PlayAnimMontage(ClimbingDownLedgeMontage);	
-	}
+	MovementComponent->TryClimbingFromTop();
 }
 
-void Ahwanyoung2Character::StartClimbingDown(UAnimMontage* _Montage, bool _Interrupted)
+void Ahwanyoung2Character::TryClimbing()
 {
-	if (_Montage == ClimbingDownLedgeMontage)
-	{
-		bool BodyHit, HeadHit;
-		FHitResult BodyHitResult, HeadHitResult;
-		ClimbingLineTrace(BodyHit, HeadHit, BodyHitResult, HeadHitResult);
+	MovementComponent->TryClimbing();
 
-		FVector TargetRelativeLocation = BodyHitResult.Location + 
-			(GetActorForwardVector() * -1.0f * GetCapsuleComponent()->GetUnscaledCapsuleRadius());
+	UE_LOG(LogTemp, Log, TEXT("Is Climbing: %s"), MovementComponent->IsClimbing() ? TEXT("True") : TEXT("False"));
+}
 
-		FRotator TargetRelativeRotation = FRotator(0.0f, UKismetMathLibrary::MakeRotFromX(BodyHitResult.Normal * -1.0f).Yaw, 0.0f);
-
-		UKismetSystemLibrary::MoveComponentTo(GetCapsuleComponent(), TargetRelativeLocation,
-			TargetRelativeRotation, false, false, 0.2f, false, EMoveComponentAction::Move, FLatentActionInfo());
-
-		bIsClimbing = true;
-	}
-
-	else if (_Montage == ClimbingLedgeUpMontage)
-	{
-		ClimbUpLedge();
-	}
+void Ahwanyoung2Character::StopClimbing()
+{
+	MovementComponent->CancelClimbing();
 }
 
 void Ahwanyoung2Character::UseStamina()
@@ -83,6 +72,22 @@ void Ahwanyoung2Character::UseStamina()
 
 void Ahwanyoung2Character::ReplenishStamina()
 {
+}
+
+void Ahwanyoung2Character::ToggleStaminaBar(bool bIsVisibility)
+{
+}
+
+void Ahwanyoung2Character::UpdateInteractionWidget()
+{
+	// Validation check
+	if (InteractionWidget == nullptr)
+	{
+		InteractionWidget = CreateWidget<UUserWidget>(Controller, InteractionWidgetClass);
+		InteractionWidget->AddToViewport();
+	}
+
+	InteractionWidget->SetText();
 }
 
 float Ahwanyoung2Character::GetStartingCameraBoomArmLength()
@@ -95,148 +100,163 @@ FVector Ahwanyoung2Character::GetStartingCameraBoomLocation()
 	return FVector();
 }
 
-void Ahwanyoung2Character::ClimbingLineTrace(bool& _BodyHit, bool& _HeadHit, FHitResult& _BodyHitResult, FHitResult& _HeadHitResult)
-{
-	FVector FirstStartLocation = GetActorLocation();
-	FVector FirstEndLocation = FirstStartLocation + GetActorForwardVector() * 100.0f;
-	FVector SecondStartLocation = FirstStartLocation + GetActorUpVector() * 80.0f;
-	FVector SecondEndLocation = SecondStartLocation + GetActorForwardVector() * 100.0f;
+#pragma region Deprecated(Replaced to HYCharacterMovementComp)
+//void Ahwanyoung2Character::StartClimbingDown(UAnimMontage* _Montage, bool _Interrupted)
+//{
+//	if (_Montage == ClimbingDownLedgeMontage)
+//	{
+//		bool BodyHit, HeadHit;
+//		FHitResult BodyHitResult, HeadHitResult;
+//		ClimbingLineTrace(BodyHit, HeadHit, BodyHitResult, HeadHitResult);
+//
+//		FVector TargetRelativeLocation = BodyHitResult.Location + 
+//			(GetActorForwardVector() * -1.0f * GetCapsuleComponent()->GetUnscaledCapsuleRadius());
+//
+//		FRotator TargetRelativeRotation = FRotator(0.0f, UKismetMathLibrary::MakeRotFromX(BodyHitResult.Normal * -1.0f).Yaw, 0.0f);
+//
+//		UKismetSystemLibrary::MoveComponentTo(GetCapsuleComponent(), TargetRelativeLocation,
+//			TargetRelativeRotation, false, false, 0.2f, false, EMoveComponentAction::Move, FLatentActionInfo());
+//
+//		bIsClimbing = true;
+//	}
+//
+//	else if (_Montage == ClimbingLedgeUpMontage)
+//	{
+//		ClimbUpLedge();
+//	}
+//}
 
-	// Do line trace from body
-	_BodyHit = GetWorld()->LineTraceSingleByChannel(_BodyHitResult, FirstStartLocation, FirstEndLocation, ECC_Visibility);
-
-	// if body hit is true
-	if (_BodyHit)
-	{
-		// do line trace from head point
-		_HeadHit = GetWorld()->LineTraceSingleByChannel(_HeadHitResult, SecondStartLocation, SecondEndLocation, ECC_Visibility);
-
-		ClimbableSurfaceNormal = FVector::ZeroVector;
-
-		ClimbableSurfaceNormal += _BodyHitResult.ImpactNormal;
-
-		// Make Normal
-		ClimbableSurfaceNormal = ClimbableSurfaceNormal.GetSafeNormal();
-	}
-}
-
-bool Ahwanyoung2Character::ClimbDownLineTrace()
-{
-	if (GetCharacterMovement()->IsFalling()) return false;
-
-	const FVector ActorLocation = GetActorLocation();
-	const FVector ForwardVector = GetActorForwardVector();
-	const FVector DownVector = -GetActorUpVector();
-
-	const FVector WalkableSufaceTraceStart = ActorLocation + ForwardVector * 50.0f;
-	const FVector WalkableSufaceTraceEnd = WalkableSufaceTraceStart + DownVector * 150.0f;
-	FHitResult WalkableSurfaceTraceHit;
-
-	// Do first line trace
-	bool bWalkableHit = GetWorld()->LineTraceSingleByChannel(WalkableSurfaceTraceHit, 
-		WalkableSufaceTraceStart, WalkableSufaceTraceEnd, ECC_Visibility);
-
-	FColor LineColor = bWalkableHit ? FColor::Green : FColor::Red;
-	DrawDebugLine(GetWorld(), WalkableSufaceTraceStart, WalkableSufaceTraceEnd, LineColor, false, 1.0f, 0, 2.0f);
-
-	// Do second line trace
-	const FVector LedgeTraceStart = WalkableSurfaceTraceHit.TraceStart + ForwardVector * 50.0f;
-	const FVector LedgeTraceEnd = LedgeTraceStart + DownVector * 300.0f;
-	FHitResult LedgeTraceHit;
-
-	bool bLedgeHit = GetWorld()->LineTraceSingleByChannel(LedgeTraceHit, LedgeTraceStart, LedgeTraceEnd, ECC_Visibility);
-
-	LineColor = bLedgeHit ? FColor::Green : FColor::Red;
-	DrawDebugLine(GetWorld(), LedgeTraceStart, LedgeTraceEnd, LineColor, false, 1.0f, 0, 2.0f);
-
-	// If the first hit is true and second hit is false, then player can start to climb ledge.
-	if (WalkableSurfaceTraceHit.bBlockingHit && !LedgeTraceHit.bBlockingHit)
-	{
-		return true;
-	}
-
-	return false;
-}
-
-bool Ahwanyoung2Character::CheckHasReachedFloor()
-{
-	const FVector DownVector = -GetActorUpVector();
-	const FVector StartOffset = DownVector * 50.0f;
-
-	const FVector Start = GetActorLocation() + StartOffset;
-	const FVector End = Start + DownVector * 75.0f;
-
-	FHitResult PossibleFloorHit;
-
-	bool bClimbableHit = GetWorld()->LineTraceSingleByChannel(PossibleFloorHit, Start, End, ECC_Visibility);
-
-	/*
-	* For Debugbing
-	//FColor LineColor = bClimbableHit ? FColor::Green : FColor::Red;
-	//DrawDebugLine(GetWorld(), Start, End, LineColor, false, 1.0f, 0, 2.0f);
-
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("%f"), UKismetMathLibrary::Quat_UnrotateVector(GetActorQuat(), GetCharacterMovement()->Velocity).Z));
-	*/
-
-	if (!bClimbableHit)
-	{
-		return false;
-	}
-
-	// Check only if character is close to floor and move to down.
-	const bool bFloorReached =
-		bClimbableHit &&
-		UKismetMathLibrary::Quat_UnrotateVector(GetActorQuat(), GetCharacterMovement()->Velocity).Z < -10.0f;
-
-	//* For Debugbing
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("%s"), FVector::Parallel(-PossibleFloorHit.ImpactNormal, FVector::UpVector) ? TEXT("true") : TEXT("false")));
-
-	if (bFloorReached)
-	{
-		return true;
-	}
-
-	return false;
-}
-
-void Ahwanyoung2Character::ToggleClimbing()
-{
-	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-	GetCharacterMovement()->bOrientRotationToMovement = false;
-	GetCharacterMovement()->StopMovementImmediately();
-
-	if (GetWorldTimerManager().IsTimerActive(StaminaRechargeTimer))
-	{
-		GetWorld()->GetTimerManager().ClearTimer(StaminaRechargeTimer);
-	}
-	GetWorld()->GetTimerManager().SetTimer(StaminaReduceTimer, this, &Ahwanyoung2Character::UseStamina, 0.05f, true);
-}
-
-void Ahwanyoung2Character::StopClimbing()
-{
-	bIsClimbing = false;
-	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-
-	if (GetWorldTimerManager().IsTimerActive(StaminaReduceTimer))
-	{
-		GetWorld()->GetTimerManager().ClearTimer(StaminaReduceTimer);
-	}
-	GetWorld()->GetTimerManager().SetTimer(StaminaRechargeTimer, this, &Ahwanyoung2Character::ReplenishStamina, 0.05f, true);
-}
-
-void Ahwanyoung2Character::ClimbUpLedge()
-{
-	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	FVector FowardVector = GetActorForwardVector() * 500.0f;
-
-	if (GetWorldTimerManager().IsTimerActive(StaminaReduceTimer))
-	{
-		GetWorld()->GetTimerManager().ClearTimer(StaminaReduceTimer);
-	}
-	GetWorld()->GetTimerManager().SetTimer(StaminaRechargeTimer, this, &Ahwanyoung2Character::ReplenishStamina, 0.05f, true);
-}
+//void Ahwanyoung2Character::ClimbingLineTrace(bool& _BodyHit, bool& _HeadHit, FHitResult& _BodyHitResult, FHitResult& _HeadHitResult)
+//{
+//	FVector FirstStartLocation = GetActorLocation();
+//	FVector FirstEndLocation = FirstStartLocation + GetActorForwardVector() * 100.0f;
+//	FVector SecondStartLocation = FirstStartLocation + GetActorUpVector() * 80.0f;
+//	FVector SecondEndLocation = SecondStartLocation + GetActorForwardVector() * 100.0f;
+//
+//	// Do line trace from body
+//	_BodyHit = GetWorld()->LineTraceSingleByChannel(_BodyHitResult, FirstStartLocation, FirstEndLocation, ECC_Visibility);
+//
+//	// if body hit is true
+//	if (_BodyHit)
+//	{
+//		// do line trace from head point
+//		_HeadHit = GetWorld()->LineTraceSingleByChannel(_HeadHitResult, SecondStartLocation, SecondEndLocation, ECC_Visibility);
+//
+//		ClimbableSurfaceNormal = FVector::ZeroVector;
+//
+//		ClimbableSurfaceNormal += _BodyHitResult.ImpactNormal;
+//
+//		// Make Normal
+//		ClimbableSurfaceNormal = ClimbableSurfaceNormal.GetSafeNormal();
+//	}
+//}
+//
+//bool Ahwanyoung2Character::ClimbDownLineTrace()
+//{
+//	if (GetCharacterMovement()->IsFalling()) return false;
+//
+//	const FVector ActorLocation = GetActorLocation();
+//	const FVector ForwardVector = GetActorForwardVector();
+//	const FVector DownVector = -GetActorUpVector();
+//
+//	const FVector WalkableSufaceTraceStart = ActorLocation + ForwardVector * 50.0f;
+//	const FVector WalkableSufaceTraceEnd = WalkableSufaceTraceStart + DownVector * 150.0f;
+//	FHitResult WalkableSurfaceTraceHit;
+//
+//	// Do first line trace
+//	bool bWalkableHit = GetWorld()->LineTraceSingleByChannel(WalkableSurfaceTraceHit, 
+//		WalkableSufaceTraceStart, WalkableSufaceTraceEnd, ECC_Visibility);
+//
+//	FColor LineColor = bWalkableHit ? FColor::Green : FColor::Red;
+//	DrawDebugLine(GetWorld(), WalkableSufaceTraceStart, WalkableSufaceTraceEnd, LineColor, false, 1.0f, 0, 2.0f);
+//
+//	// Do second line trace
+//	const FVector LedgeTraceStart = WalkableSurfaceTraceHit.TraceStart + ForwardVector * 50.0f;
+//	const FVector LedgeTraceEnd = LedgeTraceStart + DownVector * 300.0f;
+//	FHitResult LedgeTraceHit;
+//
+//	bool bLedgeHit = GetWorld()->LineTraceSingleByChannel(LedgeTraceHit, LedgeTraceStart, LedgeTraceEnd, ECC_Visibility);
+//
+//	LineColor = bLedgeHit ? FColor::Green : FColor::Red;
+//	DrawDebugLine(GetWorld(), LedgeTraceStart, LedgeTraceEnd, LineColor, false, 1.0f, 0, 2.0f);
+//
+//	// If the first hit is true and second hit is false, then player can start to climb ledge.
+//	if (WalkableSurfaceTraceHit.bBlockingHit && !LedgeTraceHit.bBlockingHit)
+//	{
+//		return true;
+//	}
+//
+//	return false;
+//}
+//
+//bool Ahwanyoung2Character::CheckHasReachedFloor()
+//{
+//	const FVector DownVector = -GetActorUpVector();
+//	const FVector StartOffset = DownVector * 50.0f;
+//
+//	const FVector Start = GetActorLocation() + StartOffset;
+//	const FVector End = Start + DownVector * 75.0f;
+//
+//	FHitResult PossibleFloorHit;
+//
+//	bool bClimbableHit = GetWorld()->LineTraceSingleByChannel(PossibleFloorHit, Start, End, ECC_Visibility);
+//
+//	/*
+//	* For Debugbing
+//	//FColor LineColor = bClimbableHit ? FColor::Green : FColor::Red;
+//	//DrawDebugLine(GetWorld(), Start, End, LineColor, false, 1.0f, 0, 2.0f);
+//
+//	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("%f"), UKismetMathLibrary::Quat_UnrotateVector(GetActorQuat(), GetCharacterMovement()->Velocity).Z));
+//	*/
+//
+//	if (!bClimbableHit)
+//	{
+//		return false;
+//	}
+//
+//	// Check only if character is close to floor and move to down.
+//	const bool bFloorReached =
+//		bClimbableHit &&
+//		UKismetMathLibrary::Quat_UnrotateVector(GetActorQuat(), GetCharacterMovement()->Velocity).Z < -10.0f;
+//
+//	//* For Debugbing
+//	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("%s"), FVector::Parallel(-PossibleFloorHit.ImpactNormal, FVector::UpVector) ? TEXT("true") : TEXT("false")));
+//
+//	if (bFloorReached)
+//	{
+//		return true;
+//	}
+//
+//	return false;
+//}
+//
+//void Ahwanyoung2Character::ToggleClimbing()
+//{
+//	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+//	GetCharacterMovement()->bOrientRotationToMovement = false;
+//	GetCharacterMovement()->StopMovementImmediately();
+//
+//	if (GetWorldTimerManager().IsTimerActive(StaminaRechargeTimer))
+//	{
+//		GetWorld()->GetTimerManager().ClearTimer(StaminaRechargeTimer);
+//	}
+//	GetWorld()->GetTimerManager().SetTimer(StaminaReduceTimer, this, &Ahwanyoung2Character::UseStamina, 0.05f, true);
+//}
+//
+//
+//void Ahwanyoung2Character::ClimbUpLedge()
+//{
+//	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+//	GetCharacterMovement()->bOrientRotationToMovement = true;
+//	FVector FowardVector = GetActorForwardVector() * 500.0f;
+//
+//	if (GetWorldTimerManager().IsTimerActive(StaminaReduceTimer))
+//	{
+//		GetWorld()->GetTimerManager().ClearTimer(StaminaReduceTimer);
+//	}
+//	GetWorld()->GetTimerManager().SetTimer(StaminaRechargeTimer, this, &Ahwanyoung2Character::ReplenishStamina, 0.05f, true);
+//}
+#pragma endregion
 
 void Ahwanyoung2Character::BeginPlay()
 {
@@ -253,7 +273,11 @@ void Ahwanyoung2Character::BeginPlay()
 		}
 	}
 
-
+	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("ELevelID"), true);
+	const AHYWorldSettings* WS = Cast<AHYWorldSettings>(GetWorld()->GetWorldSettings());
+	UE_LOG(LogTemp, Log, TEXT("Level Index: %s"), *EnumPtr->GetNameStringByValue((int64)WS->LevelIndex));
+	LevelID = WS->LevelIndex;
+	UE_LOG(LogTemp, Log, TEXT("Level Index: %s"), *EnumPtr->GetNameStringByValue((int64)LevelID));
 }
 
 //void Ahwanyoung2Character::SetGenericTeamId(const FGenericTeamId& NewTeamID)
@@ -296,15 +320,18 @@ void Ahwanyoung2Character::CheckForInteractables()
 		//Cast the actor to AInteractable
 		if (AHYInteractableActor* Interactable = Cast<AHYInteractableActor>(HitResult.GetActor())) {
 			IController->CurrentInteractable = Interactable;
+			UpdateInteractionWidget();
 			return;
 		}
 		else
 		{
 			IController->CurrentInteractable = nullptr;
+			UpdateInteractionWidget();
 		}
 	}
 	else {
 		IController->CurrentInteractable = nullptr;
+		UpdateInteractionWidget();
 	}
 
 
@@ -360,6 +387,19 @@ void Ahwanyoung2Character::SetupPlayerInputComponent(class UInputComponent* Play
 
 }
 
+void Ahwanyoung2Character::ChangeLevelIndex(FString LevelName)
+{
+	if (LevelName == TEXT("Sprink_TEST"))
+	{
+		LevelID = ELevelID::Spring;
+	}
+	else
+	{
+		LevelID = ELevelID::Loading;
+	}
+}
+
+
 void Ahwanyoung2Character::Move(const FInputActionValue& Value)
 {
 	// input is a Vector2D
@@ -379,24 +419,19 @@ void Ahwanyoung2Character::Move(const FInputActionValue& Value)
 
 		// add movement 
 
-		if (bIsClimbing)
+		if (MovementComponent->IsClimbing())
 		{
-			//const FVector UpDirection = UKismetMathLibrary::GetUpVector(FRotator(0.0f, Rotation.Yaw, 0.0f));
 			const FVector UpDirection = FVector::CrossProduct(
-				-ClimbableSurfaceNormal,
-				GetActorRightVector());
+				MovementComponent->GetClimbSurfaceNormal(),
+				-GetActorRightVector());
 
-			const FVector CRightDirection = FVector::CrossProduct(
-				-ClimbableSurfaceNormal,
-				-GetActorUpVector());
+			const FVector ClimbRightDirection = FVector::CrossProduct(
+				MovementComponent->GetClimbSurfaceNormal(),
+				GetActorUpVector());
 
-			AddMovementInput(CRightDirection, MovementVector.X);
+			AddMovementInput(ClimbRightDirection, MovementVector.X);
 			AddMovementInput(UpDirection, MovementVector.Y);
 
-			if (CheckHasReachedFloor())
-			{
-				StopClimbing();
-			}
 		}
 		else
 		{
@@ -422,7 +457,7 @@ void Ahwanyoung2Character::Look(const FInputActionValue& Value)
 void Ahwanyoung2Character::Jump()
 {
 	// if the character is climbing, stop
-	if (bIsClimbing)
+	if (MovementComponent->IsClimbing())
 	{
 		StopClimbing();
 	}
@@ -436,32 +471,7 @@ void Ahwanyoung2Character::Jump()
 		else
 		{
 			Super::Jump();
-			bool BodyHit, HeadHit;
-			FHitResult BodyHitResult, HeadHitResult;
-			ClimbingLineTrace(BodyHit, HeadHit, BodyHitResult, HeadHitResult);
-			// Somethine hit.
-			if (BodyHit && HeadHit)
-			{
-				// Change Current state to Flying(Climbing) mode.
-				bIsClimbing = true;
-				GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-				GetCharacterMovement()->bOrientRotationToMovement = false;
-
-				if (GetWorldTimerManager().IsTimerActive(StaminaRechargeTimer))
-				{
-					GetWorld()->GetTimerManager().ClearTimer(StaminaRechargeTimer);
-				}
-				GetWorld()->GetTimerManager().SetTimer(StaminaReduceTimer, this, &Ahwanyoung2Character::UseStamina, 0.05f, true);
-
-				FVector TargetRelativeLocation = HeadHitResult.Location + 
-					(GetActorForwardVector() * -1.0f * GetCapsuleComponent()->GetUnscaledCapsuleRadius());
-
-				FRotator TargetRelativeRotation = FRotator(0.0f, 
-					UKismetMathLibrary::MakeRotFromX(HeadHitResult.Normal * -1.0f).Yaw, 0.0f);
-
-				UKismetSystemLibrary::MoveComponentTo(GetCapsuleComponent(), TargetRelativeLocation, 
-					TargetRelativeRotation, false, false, 0.2f, false, EMoveComponentAction::Move, FLatentActionInfo());
-			}
+			TryClimbing();
 		}
 	}
 }

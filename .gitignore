@@ -102,6 +102,9 @@ DerivedDataCache/*
 # Not push content folder(it's so heavy. this is just for cpp code portfolio)
 Content/*
 
+# Not push my teammates created
+Source/hwanyoung2/Teammates/*
+
 
 hwanyoung2/Saved/Config/CrashReportClient/UECC-Mac-34EEC289FE4D9617CF67F4B263CA0A34/CrashReportClient.ini
 

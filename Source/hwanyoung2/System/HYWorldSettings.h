@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/WorldSettings.h"
-#include "HYTreasureChest.h"
+#include "Teammates/HYTreasureChest.h"
 #include "HYWorldSettings.generated.h"
 
 /**
