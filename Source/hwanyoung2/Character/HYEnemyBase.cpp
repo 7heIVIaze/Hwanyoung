@@ -1,4 +1,4 @@
-// Copyright 2024. TEAM DAON. All rights reserved.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "HYEnemyBase.h"
@@ -15,7 +15,6 @@ AHYEnemyBase::AHYEnemyBase()
 void AHYEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame
@@ -31,4 +30,3 @@ void AHYEnemyBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 }
-

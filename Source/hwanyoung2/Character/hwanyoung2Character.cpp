@@ -18,7 +18,8 @@
 #include "System/HYWorldSettings.h"
 #include "HYCharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
-//#include "HYPlayerAnimInstance.h"
+
+#include "Teammates/HYInteractionWidget.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -39,13 +40,6 @@ void Ahwanyoung2Character::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	//UHYPlayerAnimInstance* AnimInstance = Cast<UHYPlayerAnimInstance>(GetMesh()->GetAnimInstance());
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (AnimInstance)
-	{
-		AnimInstance->OnMontageEnded.AddDynamic(this, &Ahwanyoung2Character::StartClimbingDown);
-	}
 }
 
 void Ahwanyoung2Character::ClimbDownFromLedge_Implementation()

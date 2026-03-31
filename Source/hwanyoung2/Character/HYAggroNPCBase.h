@@ -36,33 +36,51 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 #pragma region Events in EventGraph
-	UFUNCTION(BlueprintNativeEvent)
-	void Death();
-
-	virtual void Death_Implementation();
+	UFUNCTION(BlueprintCallable)
+	virtual void Death(AActor* DamageInstigator);
 
 	// Called when player succeed to parry
-	UFUNCTION(BlueprintNativeEvent)
-	void Parried();
+	UFUNCTION(BlueprintCallable)
+	virtual void Parried();
 
-	virtual void Parried_Implementation();
+	UFUNCTION(BlueprintCallable)
+	virtual void GetLoreDataFromInstance();
 
-	UFUNCTION(BlueprintNativeEvent)
-	void GetLoreDataFromInstance();
+	UFUNCTION(BlueprintCallable)
+	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-	virtual void GetLoreDataFromInstance_Implementation();
+	UFUNCTION(BlueprintCallable)
+	virtual void InitAggroNPCState();
 
-	UFUNCTION(BlueprintNativeEvent)
-	void DealDamage(AActor* HitActor, const FHitResult& HitResult);
 
-	virtual void DealDamage_Implementation(AActor* HitActor, const FHitResult& HitResult) {}
+#pragma region Teammates Did(Already Implemented)
+	UFUNCTION(BlueprintCallable)
+	virtual void DealDamage(AActor* HitActor, const FHitResult& HitResult) {}
 
-	UFUNCTION(BlueprintNativeEvent)
-	void DamageTaken(EDamageReactionType DamageResponse, FCrowdControlInfo CrowdControlInfo, AActor* DamageInstigator, const FHitResult& Hit);
+	UFUNCTION(BlueprintCallable)
+	virtual void DamageTaken(EDamageReactionType DamageResponse, FCrowdControlInfo CrowdControlInfo, AActor* DamageInstigator, const FHitResult& Hit);
+
+	UFUNCTION(BlueprintCallable)
+	virtual void AttackAnimStart();
+
+	UFUNCTION(BlueprintCallable)
+	virtual void AttackAnimEnd();
+
+	UFUNCTION(BlueprintCallable)
+	virtual void DeathDissolve();
+
+	UFUNCTION(BlueprintCallable)
+	virtual void OnDissolvePlayed(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable)
+	virtual void OnDissolveFinished();
+#pragma endregion
 
 #pragma endregion
 
 #pragma region Functions
+
+#pragma region Teammates Did(Already Implemented)
 	// Only works for Non DOT Damage
 	UFUNCTION(BlueprintCallable)
 	virtual bool TakeDamageHelper(FDamageInfo DamageInfo, AActor* DamageInstigator, const FHitResult& Hit);
@@ -72,6 +90,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Hit Event")
 	virtual void EndHitStop();
+#pragma endregion
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Group Battle")
 	virtual void NotifyGroupAttacked(AActor* AttackTarget);
@@ -81,14 +100,10 @@ public:
 #pragma endregion
 
 #pragma region Interfaces
+
+#pragma region Teammates Did(Already Implemented)
 	UFUNCTION(BlueprintCallable)
 	virtual void StopDOT() override;
-
-	UFUNCTION(BlueprintCallable)
-	virtual void ReturnAttackToken(int Amount) override;
-
-	UFUNCTION(BlueprintCallable)
-	virtual bool ReserveAttackToken(int Amount) override;
 
 	UFUNCTION(BlueprintCallable)
 	virtual bool IsAttacking() override;
@@ -119,10 +134,6 @@ public:
 
 	virtual void ToggleWeaponTrace(bool WeaponTraceOn) override {}
 
-	// HP Recharge Passive
-	UFUNCTION(BlueprintCallable)
-	virtual bool IsActivatedHPRecharge() override { return false; }
-
 	// Heal Current HP
 	UFUNCTION(BlueprintCallable)
 	float Heal(float AmountToHeal) override;
@@ -131,19 +142,34 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual bool TakeDamage(FDamageInfo DamageInfo, AActor* DamageInstigator, float DamageDuration, float DamageInterval, const FHitResult& Hit) override;
 
-	// Character State Getter & Setter
-	UFUNCTION(BlueprintCallable)
-	virtual int32 SetCharacterState(ECharacterState InCharacterState, bool IsAddMode) override;
-
-	UFUNCTION(BlueprintCallable)
-	virtual int32 GetCharacterState() override { return static_cast<int32>(CharacterState); }
-
 	UFUNCTION(BlueprintCallable)
 	virtual bool AttackStart(AActor* AttackTarget, int TokensNeeded) override;
 
 	// Called when finishing attack
 	UFUNCTION(BlueprintCallable)
 	void AttackEnd(AActor* AttackTarget);
+
+	UFUNCTION(BlueprintCallable)
+	virtual USkeletalMeshComponent* GetCharacterMesh() override { return GetMesh(); }
+
+#pragma endregion
+
+	UFUNCTION(BlueprintCallable)
+	virtual void ReturnAttackToken(int Amount) override;
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool ReserveAttackToken(int Amount) override;
+	// HP Recharge Passive
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool IsActivatedHPRecharge() override { return false; }
+
+	// Character State Getter & Setter
+	UFUNCTION(BlueprintCallable)
+	virtual int32 SetCharacterState(ECharacterState InCharacterState, bool IsAddMode) override;
+
+	UFUNCTION(BlueprintCallable)
+	virtual int32 GetCharacterState() override { return static_cast<int32>(CharacterState); }
 
 	UFUNCTION(BlueprintCallable)
 	virtual void StoreAttackTokens(AActor* AttackTarget, int Amount) override;
@@ -156,9 +182,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	virtual void StartDialogue(AHYPlayerCharacterBase* PlayerRef) override;
-
-	UFUNCTION(BlueprintCallable)
-	virtual USkeletalMeshComponent* GetCharacterMesh() override { return GetMesh(); }
 
 	UFUNCTION(BlueprintCallable)
 	virtual void UpdateHPBar();
@@ -207,8 +230,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Group Battle")
 	FName GroupId;
-	//TObjectPtr<class AHYMobsGroupManager> GroupManager;
-
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State", meta = (Bitmask, BitmaskEnum="ECharacterState"))
 	uint8 CharacterState;
@@ -233,7 +254,7 @@ public:
 	TObjectPtr<class UAnimMontage> StaggerMontage;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Animation|Death")
-	TArray<UMaterialInstanceDynamic*> DissolveMeshMaterial;
+	TArray<UMaterialInstanceDynamic*> DissolveMeshMaterials;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon")
 	bool bCanBeParried;
@@ -281,6 +302,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource")
 	TObjectPtr<class UAnimMontage> PlayerStaggerMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource")
+	TObjectPtr<UMaterialInterface> DeathMaterial;
+
+	FTimeline DissolveTimeline;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Resource")
+	UCurveFloat* DissolveCurve;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Resource")
+	TSubclassOf<AActor> PickupSoul;
+
 #pragma endregion
 	
 public:

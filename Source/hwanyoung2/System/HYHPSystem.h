@@ -6,9 +6,9 @@
 #include "Components/ActorComponent.h"
 #include "HYHPSystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeathEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageBlocked, bool, _CanBeParried, AActor*, _DamageInstigator);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageTaken, EDamageReactionType, _DamageResponse, FCrowdControlInfo, _CrowdControl, AActor*, _DamageInstigator, const FHitResult&, _OutHit);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeathEvent, AActor*, DamageInstigator);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageBlocked, bool, CanBeParried, AActor*, DamageInstigator);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageTaken, EDamageReactionType, DamageResponse, FCrowdControlInfo, CrowdControl, AActor*, DamageInstigator, const FHitResult&, OutHit);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHealed);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -30,53 +30,48 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	// Called when the owner takes DOT damage.
-	UFUNCTION(BlueprintNativeEvent)
-	void StartDOT(FDamageInfo _DamageInfo, AActor* _DamageInstigator, float _DamageInterval);
-
-	virtual void StartDOT_Implementation(FDamageInfo _DamageInfo, AActor* _DamageInstigator, float _DamageInterval);
+	UFUNCTION(BlueprintCallable)
+	void StartDOT(FDamageInfo DamageInfo, AActor* DamageInstigator, float DamageInterval);
 
 	// Really take DOT damage logic.
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable)
 	void DamageOverTime();
 
-	virtual void DamageOverTime_Implementation();
-
 	// Stop DOT Damage.
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable)
 	void StopDOT();
 
-	virtual void StopDOT_Implementation();
 #pragma endregion
 
 #pragma region Functions
 	// Heal Current HP
 	UFUNCTION(BlueprintCallable)
-	float Heal(float _AmountToHeal);
+	float Heal(float AmountToHeal);
 
 	// Take damage logic. Call 3 delegate events for each condition.
 	UFUNCTION(BlueprintCallable)
-	bool TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstigator, const FHitResult& _Hit);
+	bool TakeDamage(FDamageInfo DamageInfo, AActor* DamageInstigator, const FHitResult& Hit);
 
 	// Consume HP
 	UFUNCTION(BlueprintCallable)
-	float UseHP(float _AmountToUse);
+	float UseHP(float AmountToUse);
 
 	// Attack token reserved by AggroMobs for group battle.
 	UFUNCTION(BlueprintCallable)
-	bool ReserveAttackToken(int _Amount);
+	bool ReserveAttackToken(int Amount);
 
 	// Return Attack token when AggroMobs finished attack.
 	UFUNCTION(BlueprintCallable)
-	void ReturnAttackToken(int _Amount);
+	void ReturnAttackToken(int Amount);
 
 #pragma region Buffs
 	// Apply HP buff
 	UFUNCTION(BlueprintCallable, Category = "Buff")
-	bool Buff(float _AmountToBuffed);
+	bool Buff(float AmountToBuffed);
 	
 	// Remove HP buff
 	UFUNCTION(BlueprintCallable, Category = "Buff")
-	bool RemoveBuff(float _AmountToBuffed);
+	bool RemoveBuff(float AmountToBuffed);
 
 #pragma endregion
 
@@ -87,49 +82,49 @@ public:
 	bool GetIsDead() { return bIsDead; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetIsDead(bool _IsDead) { bIsDead = _IsDead; }
+	void SetIsDead(bool IsDead) { bIsDead = IsDead; }
 
 	UFUNCTION(BlueprintCallable)
 	float GetCurrentHP() { return CurrentHP; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetCurrentHP(float _CurrentHP) { CurrentHP = _CurrentHP; }
+	void SetCurrentHP(float NewHP) { CurrentHP = NewHP; }
 
 	UFUNCTION(BlueprintCallable)
 	float GetMaxHP() { return MaxHP; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetMaxHP(float _MaxHP) { MaxHP = _MaxHP; }
+	void SetMaxHP(float NewHP) { MaxHP = NewHP; }
 
 	UFUNCTION(BlueprintCallable)
 	bool GetIsInvincible() { return bIsInvincible; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetIsInvincible(bool _IsInvincible) { bIsInvincible = _IsInvincible; }
+	void SetIsInvincible(bool IsInvincible) { bIsInvincible = IsInvincible; }
 
 	UFUNCTION(BlueprintCallable)
 	bool GetIsBlocking() { return bIsBlocking; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetIsBlocking(bool _IsBlocking) { bIsBlocking = _IsBlocking; }
+	void SetIsBlocking(bool IsBlocking) { bIsBlocking = IsBlocking; }
 
 	UFUNCTION(BlueprintCallable)
 	bool GetIsInterruptible() { return bIsInterruptible; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetIsInterruptible(bool _IsInterruptible) { bIsInterruptible = _IsInterruptible; }
+	void SetIsInterruptible(bool IsInterruptible) { bIsInterruptible = IsInterruptible; }
 
 	UFUNCTION(BlueprintCallable)
 	bool GetIsParrying() { return bIsParrying; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetIsParrying(bool _IsParrying) { bIsParrying = _IsParrying; }
+	void SetIsParrying(bool IsParrying) { bIsParrying = IsParrying; }
 
 	UFUNCTION(BlueprintCallable)
 	int GetAttackTokensCount() { return AttackTokensCount; }
 
 	UFUNCTION(BlueprintCallable)
-	void SetMaxAttackTokensCount(int _InitAttackTokenCount) { MaxAttackTokensCount = _InitAttackTokenCount; }
+	void SetMaxAttackTokensCount(int InitAttackTokenCount) { MaxAttackTokensCount = InitAttackTokenCount; }
 
 	UFUNCTION(BlueprintCallable)
 	int GetMaxAttackTokensCount() { return MaxAttackTokensCount; }

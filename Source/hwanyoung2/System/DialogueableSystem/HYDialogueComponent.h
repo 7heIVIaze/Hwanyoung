@@ -23,14 +23,11 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 #pragma region EventGraphs
 	UFUNCTION(BlueprintNativeEvent)
-	void OptionSelected(UDataTable* _DataTable, FName _RowName);
+	void OptionSelected(UDataTable* DialogueTable, FName NextRow);
 
-	virtual void OptionSelected_Implementation(UDataTable* _DataTable, FName _RowName);
+	virtual void OptionSelected_Implementation(UDataTable* DialogueTable, FName NextRow);
 
 	UFUNCTION(BlueprintNativeEvent)
 	void PlaySounds(class UFMODEvent* _MelodicSeq, class UFMODEvent* _EffortBankLine);
@@ -52,6 +49,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ShowReplyOptions(TArray<struct FOptionsDialogue> _ReplyOptions);
+
+	UFUNCTION(BlueprintCallable)
+	void SkipDialogues();
 #pragma endregion
 
 #pragma region Variables
@@ -81,6 +81,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Variables")
 	EDialogueEventType EventTriggerType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Variables")
+	TArray<FOptionsDialogue> ReplyDialogueOptions;
 #pragma endregion
 
 #pragma region Resources

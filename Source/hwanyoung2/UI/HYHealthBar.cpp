@@ -3,6 +3,7 @@
 #include "UI/HYHealthBar.h"
 #include "Components/ProgressBar.h"
 #include "Interfaces/Damagable.h"
+#include "HYBossHealthBar.h"
 
 void UHYHealthBar::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {

@@ -1,6 +1,7 @@
 // Copyright 2024. TEAM DAON. All rights reserved.
 
 #include "HYAggroNPCBase.h"
+
 #include "DataAssets/CharacterStatusType.h"
 #include "DataAssets/CombatTypes.h"
 #include "HYPlayerCharacterBase.h"
@@ -20,11 +21,12 @@
 #include "DialogueableSystem/HYDialogueComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "System/HYGroupManagerSubsystem.h"
-
 #include "UI/HYHealthBar.h"
 #include "UI/HYDamageAmount.h"
-#include "HYPoolSubSystem.h"
+#include "System/HYPoolSubSystem.h"
+#include "Stats/HYAttributeSystem.h"
 
+#pragma region Teammates Did(Already Implemented)
 AHYAggroNPCBase::AHYAggroNPCBase()
 {
 	CombatSystem = CreateDefaultSubobject<UHYCombatSystem>(TEXT("Combat System"));
@@ -37,13 +39,17 @@ AHYAggroNPCBase::AHYAggroNPCBase()
 	Widget = CreateDefaultSubobject<UWidgetComponent>(TEXT("Widget"));
 	Widget->SetupAttachment(RootComponent);
 }
+#pragma endregion
 
 void AHYAggroNPCBase::BeginPlay()
 {
 	Super::BeginPlay();
 
 	GetLoreDataFromInstance();
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	AnimInstance->OnMontageEnded.AddDynamic(this, &AHYAggroNPCBase::OnMontageEnded);
 
+#pragma region Teammates Did(Already Implemented)
 	// Set up health bar widget.
 	UHYHealthBar* NPCHealthBarHUD = CreateWidget<UHYHealthBar>(this, NPCHealthWidget);
 	NPCHealthBarHUD->SetDamagableActor(this);
@@ -55,35 +61,68 @@ void AHYAggroNPCBase::BeginPlay()
 	AICBase = Cast<AHYAIController>(GetController());
 	SetCharacterState(ECharacterState::None, true);
 
+	// Set up binding to events
+	HPSystem->OnDeath.AddDynamic(this, &AHYAggroNPCBase::Death);
+	HPSystem->OnDamageTaken.AddDynamic(this, &AHYAggroNPCBase::DamageTaken);
+
+	//DialogueSystem->OnDialogueFinished.AddDynamic(this, &AHYAggroNPCBase::EndDialogue);
+	CombatSystem->OnTraceDamage.AddDynamic(this, &AHYAggroNPCBase::DealDamage);
+
+	if (DissolveCurve)
+	{
+		FOnTimelineFloat DissolveProgress;
+		DissolveProgress.BindDynamic(this, &AHYAggroNPCBase::OnDissolvePlayed);
+		DissolveTimeline.AddInterpFloat(DissolveCurve, DissolveProgress);
+
+		FOnTimelineEvent DissolveFinished;
+		DissolveFinished.BindDynamic(this, &AHYAggroNPCBase::OnDissolveFinished);
+		DissolveTimeline.SetTimelineFinishedFunc(DissolveFinished);
+	}
+#pragma endregion
+
 	UHYGroupManagerSubsystem* GroupManagerSubsystem = GetGameInstance()->GetSubsystem<UHYGroupManagerSubsystem>();
 	if (GroupManagerSubsystem)
 	{
 		GroupManagerSubsystem->RegisterGroup(this, GroupId);
 	}
-
-	// Set up binding to events
-	HPSystem->OnDeath.AddDynamic(this, &AHYAggroNPCBase::Death_Implementation);
-	HPSystem->OnDamageTaken.AddDynamic(this, &AHYAggroNPCBase::DamageTaken);
-
-	//DialogueSystem->OnDialogueFinished.AddDynamic(this, &AHYAggroNPCBase::EndDialogue);
-	CombatSystem->OnTraceDamage.AddDynamic(this, &AHYAggroNPCBase::DealDamage);
 }
 
 void AHYAggroNPCBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (DissolveTimeline.IsPlaying())
+	{
+		DissolveTimeline.TickTimeline(DeltaTime);
+	}
 }
 
-void AHYAggroNPCBase::Death_Implementation()
+void AHYAggroNPCBase::Death(AActor* DamageInstigator)
 {
 	// Do when npc is dead
 	if (IsDead())
 	{
+		// Spirituality Increased.(like XP)
+		auto AttributeSystem = DamageInstigator->GetComponentByClass<UHYAttributeSystem>();
+		AttributeSystem->SpiritualityChange(TEXT("MonsterDeath"));
+
+#pragma region Teammates Did(Already Implemented)
 		// Stop behavior
 		AICBase->GetBrainComponent()->StopLogic(TEXT(""));
 
 		GetMesh()->SetSimulatePhysics(true);
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+#pragma endregion
+
+		// Remove all attached arrows
+		TArray<AActor*> AttachedActors;
+
+		GetAttachedActors(AttachedActors, true, false);
+		for (auto AttachedActor : AttachedActors)
+		{
+			// Return the arrow actor to the pool
+			GetGameInstance()->GetSubsystem<UHYPoolSubSystem>()->ReturnToPool(AttachedActor);
+		}
 
 		TArray<AActor*> ActorsToReturnTokens;
 		ReservedAttackTokens.GetKeys(ActorsToReturnTokens);
@@ -93,10 +132,15 @@ void AHYAggroNPCBase::Death_Implementation()
 		{
 			Cast<AHYPlayerCharacterBase>(ActorAndToken.Key)->ReturnAttackToken(ActorAndToken.Value);
 		}
+		
+#pragma region Teammates Did(Already Implemented)
+		UnequipWeapon();
+		DeathDissolve();
+#pragma endregion
 	}
 }
 
-void AHYAggroNPCBase::Parried_Implementation()
+void AHYAggroNPCBase::Parried()
 {
 	//AICBase->SetStateAsFrozen();
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -107,12 +151,13 @@ void AHYAggroNPCBase::Parried_Implementation()
 
 	if (AnimInstance && StaggerMontage)
 	{
-		FOnMontageEnded EndDelegate;
-		EndDelegate.BindLambda([&](UAnimMontage* _AnimMontage, bool _IsEnded)
+		// Not used
+		/*FOnMontageEnded EndDelegate;
+		EndDelegate.BindLambda([this](UAnimMontage* AnimMontage, bool IsEnded)
 		{
-			AICBase->SetStateAsAttacking(AICBase->GetAttackTarget(), false);
+			AICBase->SetStateAsAttacking(AICBase->AttackTarget, false);
 		});
-		AnimInstance->Montage_SetEndDelegate(EndDelegate);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate);*/
 		
 
 		AnimInstance->Montage_Play(StaggerMontage);
@@ -120,7 +165,7 @@ void AHYAggroNPCBase::Parried_Implementation()
 	}
 }
 
-void AHYAggroNPCBase::GetLoreDataFromInstance_Implementation()
+void AHYAggroNPCBase::GetLoreDataFromInstance()
 {
 	UHYGameInstance* GameInstance = Cast<UHYGameInstance>(GetGameInstance());
 	auto LoreData = GameInstance->GetLoreData();
@@ -132,6 +177,55 @@ void AHYAggroNPCBase::GetLoreDataFromInstance_Implementation()
 			Destroy();
 		}
 	}
+}
+
+void AHYAggroNPCBase::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (Montage == StaggerMontage)
+	{
+		AttackEnd(AICBase->AttackTarget);
+		AICBase->SetStateAsAttacking(AICBase->AttackTarget, false);
+	}
+}
+
+void AHYAggroNPCBase::InitAggroNPCState()
+{
+	FSaveData SaveData = GetGameInstance<UHYGameInstance>()->SaveData;
+	if (FLore* LoreData = SaveData.LoreData.Find(BossNPCRowName))
+	{
+		if (LoreData->bHasBeenSlain)
+		{
+			Destroy();
+		}
+	}
+}
+
+void AHYAggroNPCBase::EndDialogue(AHYPlayerCharacterBase* PlayerRef)
+{
+	OnDialogueEnd.Broadcast();
+}
+
+void AHYAggroNPCBase::StartDialogue(AHYPlayerCharacterBase* PlayerRef)
+{
+	DialogueSystem->StartDialogue(PlayerRef);
+}
+
+void AHYAggroNPCBase::UpdateHPBar()
+{
+	UHYHealthBar* NPCHealthBarWidget = Cast<UHYHealthBar>(Widget->GetUserWidgetObject());
+
+	NPCHealthBarWidget->SetPercentage();
+}
+
+
+void AHYAggroNPCBase::NotifyGroupAttacked(AActor* AttackTarget)
+{
+	AICBase->NoticeEnemy(AttackTarget);
+}
+
+void AHYAggroNPCBase::ToggleParryTiming(bool IsParryable)
+{
+	bCanBeParried = IsParryable;
 }
 
 void AHYAggroNPCBase::DamageTaken(EDamageReactionType DamageResponse, FCrowdControlInfo CrowdControlInfo,
@@ -161,6 +255,93 @@ void AHYAggroNPCBase::DamageTaken(EDamageReactionType DamageResponse, FCrowdCont
 			FRotator::ZeroRotator, HitParticleScale);
 	}
 	// Not implemented yet.
+}
+
+void AHYAggroNPCBase::ReturnAttackToken(int Amount)
+{
+	HPSystem->ReturnAttackToken(Amount);
+}
+
+bool AHYAggroNPCBase::ReserveAttackToken(int Amount)
+{
+	return HPSystem->ReserveAttackToken(Amount);
+}
+
+int32 AHYAggroNPCBase::SetCharacterState(ECharacterState InCharacterState, bool IsAddMode)
+{
+	// Is the state added?
+	if (IsAddMode)
+	{
+		CharacterState = CharacterState | static_cast<uint8>(InCharacterState);
+	}
+	else
+	{
+		CharacterState = CharacterState & !static_cast<uint8>(InCharacterState);
+	}
+
+	return CharacterState;
+}
+
+void AHYAggroNPCBase::StoreAttackTokens(AActor* AttackTarget, int Amount)
+{
+	if (ReservedAttackTokens.Contains(AttackTarget))
+	{
+		Amount = Amount + ReservedAttackTokens[AttackTarget];
+	}
+
+	ReservedAttackTokens[AttackTarget] = Amount;
+	return;
+}
+
+#pragma region Teammates Did(Already Implemented)
+void AHYAggroNPCBase::AttackAnimStart()
+{
+	CombatSystem->bIsAttacking = true;
+}
+
+void AHYAggroNPCBase::AttackAnimEnd()
+{
+	CombatSystem->bIsAttacking = false;
+}
+
+void AHYAggroNPCBase::DeathDissolve()
+{
+	TArray<UMaterialInterface*> Materials = GetMesh()->GetMaterials();
+
+	for (int i = 0; i < Materials.Num(); ++i)
+	{
+		DissolveMeshMaterials.Add(GetMesh()->CreateDynamicMaterialInstance(i, DeathMaterial));
+	}
+
+	DissolveTimeline.PlayFromStart();
+}
+
+void AHYAggroNPCBase::OnDissolvePlayed(float DeltaTime)
+{
+	for (auto DissolveMat : DissolveMeshMaterials)
+	{
+		DissolveMat->SetScalarParameterValue(TEXT("DissolveFactor"), FMath::Lerp(-1.0f, 1.0f, DeltaTime));
+	}
+}
+
+void AHYAggroNPCBase::OnDissolveFinished()
+{
+	TArray<AActor*> AttachedActors;
+	GetAttachedActors(AttachedActors);
+
+	auto PoolSystem = GetGameInstance()->GetSubsystem<UHYPoolSubSystem>();
+
+	for (int i = AttachedActors.Num(); i >= 0; --i)
+	{
+		if (IsValid(AttachedActors[i]))
+		{
+			PoolSystem->ReturnToPool(AttachedActors[i]);
+		}
+	}
+
+	AActor* SpawnedActor;
+	PoolSystem->SpawnFromPool(PickupSoul, GetActorLocation(), GetActorRotation(), SpawnedActor);
+	Destroy();
 }
 
 bool AHYAggroNPCBase::TakeDamageHelper(FDamageInfo DamageInfo, AActor* DamageInstigator, const FHitResult& Hit)
@@ -210,31 +391,10 @@ void AHYAggroNPCBase::EndHitStop()
 {
 	CustomTimeDilation = 1.0f;
 }
-
-void AHYAggroNPCBase::NotifyGroupAttacked(AActor* AttackTarget)
-{
-	AICBase->NoticeEnemy(AttackTarget);
-}
-
-void AHYAggroNPCBase::ToggleParryTiming(bool IsParryable)
-{
-	bCanBeParried = IsParryable;
-}
-
 void AHYAggroNPCBase::StopDOT()
 {
-	HPSystem->StopDOT_Implementation();
+	HPSystem->StopDOT();
 	GetWorld()->GetTimerManager().ClearTimer(DOTTimer);
-}
-
-void AHYAggroNPCBase::ReturnAttackToken(int _Amount)
-{
-	HPSystem->ReturnAttackToken(_Amount);
-}
-
-bool AHYAggroNPCBase::ReserveAttackToken(int _Amount)
-{
-	return HPSystem->ReserveAttackToken(_Amount);
 }
 
 bool AHYAggroNPCBase::IsAttacking()
@@ -257,14 +417,14 @@ bool AHYAggroNPCBase::IsDead()
 	return HPSystem->GetIsDead();
 }
 
-float AHYAggroNPCBase::Heal(float _AmountToHeal)
+float AHYAggroNPCBase::Heal(float AmountToHeal)
 {
-	return HPSystem->Heal(_AmountToHeal);
+	return HPSystem->Heal(AmountToHeal);
 }
 
-bool AHYAggroNPCBase::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstigator, float _DamageDuration, float _DamageInterval, const FHitResult& _Hit)
+bool AHYAggroNPCBase::TakeDamage(FDamageInfo DamageInfo, AActor* DamageInstigator, float DamageDuration, float DamageInterval, const FHitResult& Hit)
 {
-	switch (_DamageInfo.DamageType)
+	switch (DamageInfo.DamageType)
 	{
 		// Non DOT Damage types
 		case EDamageType::None:
@@ -279,7 +439,7 @@ bool AHYAggroNPCBase::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstiga
 		case EDamageType::HaesolArrowSkill:
 		case EDamageType::AOE:
 		{
-			return TakeDamageHelper(_DamageInfo, _DamageInstigator, _Hit);
+			return TakeDamageHelper(DamageInfo, DamageInstigator, Hit);
 		}
 			break;
 		// DOT Damage types
@@ -294,8 +454,8 @@ bool AHYAggroNPCBase::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstiga
 		case EDamageType::Bleed:
 		case EDamageType::Freeze:
 		{
-			GetWorld()->GetTimerManager().SetTimer(DOTTimer, this, &AHYAggroNPCBase::StopDOT, _DamageDuration, false);
-			HPSystem->StartDOT_Implementation(_DamageInfo, _DamageInstigator, _DamageInterval);
+			GetWorld()->GetTimerManager().SetTimer(DOTTimer, this, &AHYAggroNPCBase::StopDOT, DamageDuration, false);
+			HPSystem->StartDOT(DamageInfo, DamageInstigator, DamageInterval);
 			return true;
 		}
 			break;
@@ -303,79 +463,53 @@ bool AHYAggroNPCBase::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstiga
 	return false;
 }
 
-int32 AHYAggroNPCBase::SetCharacterState(ECharacterState _InCharacterState, bool _IsAddMode)
+bool AHYAggroNPCBase::AttackStart(AActor* AttackTarget, int TokensNeeded)
 {
-	// Is the state added?
-	if (_IsAddMode)
-	{
-		CharacterState = CharacterState | static_cast<uint8>(_InCharacterState);
-	}
-	else
-	{
-		CharacterState = CharacterState & !static_cast<uint8>(_InCharacterState);
-	}
-
-	return CharacterState;
-}
-
-bool AHYAggroNPCBase::AttackStart(AActor* _AttackTarget, int _TokensNeeded)
-{
-	bool bResult = Cast<AHYPlayerCharacterBase>(_AttackTarget)->ReserveAttackToken(_TokensNeeded);
+	bool bResult = Cast<AHYPlayerCharacterBase>(AttackTarget)->ReserveAttackToken(TokensNeeded);
 
 	if (bResult)
 	{
-		StoreAttackTokens(_AttackTarget, _TokensNeeded);
-		TokenUsedInCurrentAttack = _TokensNeeded;
+		StoreAttackTokens(AttackTarget, TokensNeeded);
+		TokenUsedInCurrentAttack = TokensNeeded;
 	}
 
 	return bResult;
 }
 
-void AHYAggroNPCBase::AttackEnd(AActor* _AttackTarget)
+void AHYAggroNPCBase::AttackEnd(AActor* AttackTarget)
 {
-	Cast<AHYPlayerCharacterBase>(_AttackTarget)->ReturnAttackToken(TokenUsedInCurrentAttack);
-	StoreAttackTokens(_AttackTarget, TokenUsedInCurrentAttack - 1);
+	Cast<AHYPlayerCharacterBase>(AttackTarget)->ReturnAttackToken(TokenUsedInCurrentAttack);
+	StoreAttackTokens(AttackTarget, TokenUsedInCurrentAttack - 1);
 	OnAttackEnd.Broadcast();
 }
 
-void AHYAggroNPCBase::StoreAttackTokens(AActor* _AttackTarget, int _Amount)
+float AHYAggroNPCBase::SetMovementSpeed(ENPCMovementSpeed MovementType)
 {
-	if (ReservedAttackTokens.Contains(_AttackTarget))
-	{
-		_Amount = _Amount + ReservedAttackTokens[_AttackTarget];
-	}
-	
-	ReservedAttackTokens[_AttackTarget] = _Amount;
-	return;
-}
-
-float AHYAggroNPCBase::SetMovementSpeed(ENPCMovementSpeed _MovementType)
-{
-	CurrentMovementType = _MovementType;
+	CurrentMovementType = MovementType;
 	float fSpeed = 0.0f;
 
 	switch (CurrentMovementType)
 	{
-		case ENPCMovementSpeed::Idle:
-		{
-			fSpeed = 0.0f;
-		}
-		break;
-		case ENPCMovementSpeed::Walking:
-		{
-			fSpeed = 150.0f;
-		}
-		break;
-		case ENPCMovementSpeed::Jogging:
-		{
-			fSpeed = 200.0f;
-		}
-		break;
-		case ENPCMovementSpeed::Sprinting:
-		{
-			fSpeed = 300.0f;
-		}
-		break;
+	case ENPCMovementSpeed::Idle:
+	{
+		fSpeed = 0.0f;
+	}
+	break;
+	case ENPCMovementSpeed::Walking:
+	{
+		fSpeed = 150.0f;
+	}
+	break;
+	case ENPCMovementSpeed::Jogging:
+	{
+		fSpeed = 200.0f;
+	}
+	break;
+	case ENPCMovementSpeed::Sprinting:
+	{
+		fSpeed = 300.0f;
+	}
+	break;
 	}
 
 	// Slow debuff
@@ -388,20 +522,4 @@ float AHYAggroNPCBase::SetMovementSpeed(ENPCMovementSpeed _MovementType)
 
 	return fSpeed;
 }
-
-void AHYAggroNPCBase::EndDialogue(AHYPlayerCharacterBase* _PlayerRef)
-{
-	OnDialogueEnd.Broadcast();
-}
-
-void AHYAggroNPCBase::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
-{
-	DialogueSystem->StartDialogue(_PlayerRef);
-}
-
-void AHYAggroNPCBase::UpdateHPBar()
-{
-	UHYHealthBar* NPCHealthBarWidget = Cast<UHYHealthBar>(Widget->GetUserWidgetObject());
-
-	NPCHealthBarWidget->SetPercentage();
-}
+#pragma endregion

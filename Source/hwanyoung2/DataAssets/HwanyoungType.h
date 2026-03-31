@@ -50,3 +50,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Affinity")
 	int32 AffinityPoint;
 };
+
+// Boss type for boss hp bar widget
+USTRUCT(BlueprintType)
+struct FBossType : public FTableRowBase
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+
+	// Boss NPC's name .
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	FText BossName;
+
+	// The title of boss npc.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	FText BossTitle;
+
+	// the color of boss name
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss")
+	FColor BossNameColor;
+};

@@ -33,7 +33,7 @@ void UHYHPSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	// ...
 }
 
-float UHYHPSystem::Heal(float _AmountToHeal)
+float UHYHPSystem::Heal(float AmountToHeal)
 {
 	// If the character is dead, escape
 	if (bIsDead)
@@ -42,19 +42,19 @@ float UHYHPSystem::Heal(float _AmountToHeal)
 	}
 
 	// Add healing amount to current HP 
-	CurrentHP = FMath::Clamp(CurrentHP + _AmountToHeal, 0.0f, MaxHP);
+	CurrentHP = FMath::Clamp(CurrentHP + AmountToHeal, 0.0f, MaxHP);
 	OnHeal.Broadcast();
 
 	return CurrentHP;
 }
 
-bool UHYHPSystem::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstigator, const FHitResult& _Hit)
+bool UHYHPSystem::TakeDamage(FDamageInfo DamageInfo, AActor* DamageInstigator, const FHitResult& _Hit)
 {
 	// Is the damage able to hurt the invincible character or character is not invincible?
-	bool bBeDamageAbleToDeal = !bIsDead && (_DamageInfo.bShouldDamageInvincible || !bIsInvincible);
+	bool bBeDamageAbleToDeal = !bIsDead && (DamageInfo.bShouldDamageInvincible || !bIsInvincible);
 
 	// Can this damage be blocked and is character blocking?
-	bool bIsDamageBlocked = !bIsBlocking && _DamageInfo.bCanBeBlocked;
+	bool bIsDamageBlocked = !bIsBlocking && DamageInfo.bCanBeBlocked;
 
 	if (bBeDamageAbleToDeal)
 	{
@@ -62,7 +62,7 @@ bool UHYHPSystem::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstigator,
 		if (bIsDamageBlocked)
 		{
 			// Broadcast that blocked damage. Whether or not there is a pairing will be determined in the bound function.
-			OnDamageBlocked.Broadcast(_DamageInfo.bCanBeParried, _DamageInstigator);
+			OnDamageBlocked.Broadcast(DamageInfo.bCanBeParried, DamageInstigator);
 
 			return false;
 		}
@@ -71,23 +71,23 @@ bool UHYHPSystem::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstigator,
 		else
 		{
 			// Calculate damage logic current HP
-			CurrentHP = FMath::Clamp(CurrentHP - _DamageInfo.DamageAmount, 0.0f, MaxHP);
+			CurrentHP = FMath::Clamp(CurrentHP - DamageInfo.DamageAmount, 0.0f, MaxHP);
 
 			// if current HP is less equal to 0, dead
 			if (CurrentHP <= 0.0f)
 			{
 				bIsDead = true;
 
-				OnDeath.Broadcast();
+				OnDeath.Broadcast(DamageInstigator);
 
 				return true;
 			}
 
 			// Check can be interruptable
-			if (bIsInterruptible || _DamageInfo.bShouldForceInterrupt)
+			if (bIsInterruptible || DamageInfo.bShouldForceInterrupt)
 			{
 				// Do Take Damage logic
-				OnDamageTaken.Broadcast(_DamageInfo.DamageReactionType, _DamageInfo.CrowdControl, _DamageInstigator, _Hit);
+				OnDamageTaken.Broadcast(DamageInfo.DamageReactionType, DamageInfo.CrowdControl, DamageInstigator, _Hit);
 			}
 
 			return true;
@@ -104,20 +104,20 @@ bool UHYHPSystem::TakeDamage(FDamageInfo _DamageInfo, AActor* _DamageInstigator,
 	return false;
 }
 
-float UHYHPSystem::UseHP(float _AmountToUse)
+float UHYHPSystem::UseHP(float AmountToUse)
 {
-	CurrentHP = FMath::Clamp(CurrentHP - _AmountToUse, 0.0f, MaxHP);
+	CurrentHP = FMath::Clamp(CurrentHP - AmountToUse, 0.0f, MaxHP);
 
 	return CurrentHP;
 }
 
-bool UHYHPSystem::ReserveAttackToken(int _Amount)
+bool UHYHPSystem::ReserveAttackToken(int Amount)
 {
 	// Check if a mob can get attack token
-	if (AttackTokensCount >= _Amount)
+	if (AttackTokensCount >= Amount)
 	{
 		// Remove one token and add it to notify that there is a mob currently attacking.
-		AttackTokensCount = FMath::Clamp(AttackTokensCount - _Amount, 0, MaxAttackTokensCount);
+		AttackTokensCount = FMath::Clamp(AttackTokensCount - Amount, 0, MaxAttackTokensCount);
 
 		return true;
 	}
@@ -125,74 +125,74 @@ bool UHYHPSystem::ReserveAttackToken(int _Amount)
 	return false;
 }
 
-void UHYHPSystem::ReturnAttackToken(int _Amount)
+void UHYHPSystem::ReturnAttackToken(int Amount)
 {
-	AttackTokensCount = FMath::Clamp(AttackTokensCount + _Amount, 0, MaxAttackTokensCount);
+	AttackTokensCount = FMath::Clamp(AttackTokensCount + Amount, 0, MaxAttackTokensCount);
 
 	return;
 }
 
-void UHYHPSystem::StartDOT_Implementation(FDamageInfo _DamageInfo, AActor* _DamageInstigator, float _DamageInterval)
+void UHYHPSystem::StartDOT(FDamageInfo DamageInfo, AActor* DamageInstigator, float DamageInterval)
 {
 
 	// Is the damage able to hurt the invincible character or character is not invincible?
-	bool bBeDamageAbleToDeal = !bIsDead && (_DamageInfo.bShouldDamageInvincible || !bIsInvincible);
+	bool bBeDamageAbleToDeal = !bIsDead && (DamageInfo.bShouldDamageInvincible || !bIsInvincible);
 
 	// Can this damage be blocked and is character blocking?
-	bool bIsDamageBlocked = !bIsBlocking && _DamageInfo.bCanBeBlocked;
+	bool bIsDamageBlocked = !bIsBlocking && DamageInfo.bCanBeBlocked;
 
 	if (true == bBeDamageAbleToDeal)
 	{
 		// if character taken damage
 		if (false == bIsDamageBlocked)
 		{
-			GetWorld()->GetTimerManager().SetTimer(DOTTimer, FTimerDelegate::CreateLambda([this, _DamageInfo, _DamageInstigator]()
+			GetWorld()->GetTimerManager().SetTimer(DOTTimer, FTimerDelegate::CreateLambda([this, DamageInfo, DamageInstigator]()
 			{
 				// Damage Over Time
-				this->CurrentHP = FMath::Clamp(this->CurrentHP - _DamageInfo.DamageAmount, 0.0f, this->MaxHP);
+				this->CurrentHP = FMath::Clamp(this->CurrentHP - DamageInfo.DamageAmount, 0.0f, this->MaxHP);
 
 				// If the character is dead.
 				if (this->CurrentHP <= 0)
 				{
 					this->bIsDead = true;
-					this->OnDeath.Broadcast();
+					this->OnDeath.Broadcast(DamageInstigator);
 
-					StopDOT_Implementation();
+					StopDOT();
 				}
 				else
 				{
-					if (this->bIsInterruptible || _DamageInfo.bShouldForceInterrupt)
+					if (this->bIsInterruptible || DamageInfo.bShouldForceInterrupt)
 					{
-						this->OnDamageTaken.Broadcast(_DamageInfo.DamageReactionType, _DamageInfo.CrowdControl, _DamageInstigator, FHitResult());
+						this->OnDamageTaken.Broadcast(DamageInfo.DamageReactionType, DamageInfo.CrowdControl, DamageInstigator, FHitResult());
 					}
 				}
 
 
-			}), _DamageInterval, true);
+			}), DamageInterval, true);
 		}
 	}
 }
 
-void UHYHPSystem::DamageOverTime_Implementation()
+void UHYHPSystem::DamageOverTime()
 {
 	return;
 }
 
-void UHYHPSystem::StopDOT_Implementation()
+void UHYHPSystem::StopDOT()
 {
 	GetWorld()->GetTimerManager().ClearTimer(DOTTimer);
 }
 
-bool UHYHPSystem::Buff(float _AmountToBuffed)
+bool UHYHPSystem::Buff(float AmountToBuffed)
 {
 	// If the character is not dead, then apply buff
 	if (false == bIsDead)
 	{
 		// Increase max HP temporarily.
-		MaxHP += _AmountToBuffed;
+		MaxHP += AmountToBuffed;
 
 		// And increase(heal) current HP.(that is permanant)
-		Heal(_AmountToBuffed);
+		Heal(AmountToBuffed);
 
 		return true;
 	}
@@ -200,10 +200,10 @@ bool UHYHPSystem::Buff(float _AmountToBuffed)
 	return false;
 }
 
-bool UHYHPSystem::RemoveBuff(float _AmountToBuffed)
+bool UHYHPSystem::RemoveBuff(float AmountToBuffed)
 {
 	// Decrease the increased amount of HP
-	MaxHP -= _AmountToBuffed;
+	MaxHP -= AmountToBuffed;
 
 	// Adjust the current HP to be between 0 and max hp.
 	CurrentHP = FMath::Clamp(CurrentHP, 0.0f, MaxHP);

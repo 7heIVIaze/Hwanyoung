@@ -2,7 +2,7 @@
 
 #include "HYGroupManagerSubsystem.h"
 
-#include "HYEnemyBase.h"
+#include "Character/HYEnemyBase.h"
 
 void UHYGroupManagerSubsystem::RegisterGroup(AHYEnemyBase* Mobs, FName GroupId)
 {

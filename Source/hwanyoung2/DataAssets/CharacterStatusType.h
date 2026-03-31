@@ -56,6 +56,7 @@ enum class ENPCBehaviorState : uint8
 	Combat UMETA(DisplayName = "Combat"),							// start to combat, Only available for AggroNPCs.
 	Frozen UMETA(DisplayName = "Frozen"),							// stunned, etc.
 	Fleeing UMETA(DisplayName = "Fleeing"),							// fleeing, Only available for Puzzle NPCs.
+	Returnning UMETA(DisplayName = "Returnning"),					// returnning to the original location.
 };
 
 // struct to manage buffable info

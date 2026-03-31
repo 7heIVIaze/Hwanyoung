@@ -11,6 +11,7 @@
 #include "HYGameInstance.h"
 #include "HYSaveGame.h"
 #include "Components/ScrollBox.h"
+#include "UI/HYDialogueOptionWidget.h"
 
 // Sets default values for this component's properties
 UHYDialogueComponent::UHYDialogueComponent()
@@ -32,22 +33,13 @@ void UHYDialogueComponent::BeginPlay()
 	
 }
 
-
-// Called every frame
-void UHYDialogueComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UHYDialogueComponent::OptionSelected_Implementation(UDataTable* DialogueTable, FName NextRow)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ...
-}
-
-void UHYDialogueComponent::OptionSelected_Implementation(UDataTable* _DataTable, FName _RowName)
-{
-	FDialogueStructure* DialogueData = _DataTable->FindRow<FDialogueStructure>(_RowName, TEXT(""));
+	FDialogueStructure* DialogueData = DialogueTable->FindRow<FDialogueStructure>(NextRow, TEXT(""));
 
 	DialogueWidget->OptionScrollBox->ClearChildren();
 
-	PlaySounds_Implementation(DialogueData->MelodicSFXOneShot, DialogueData->EffortBarkline);
+	PlaySounds(DialogueData->MelodicSFXOneShot, DialogueData->EffortBarkline);
 	DialogueWidget->UpdateDialogue(DialogueData->DialogueText, Name, DialogueData->SpeakerPortrait);
 
 	RowName = DialogueData->NextRow;
@@ -78,11 +70,11 @@ void UHYDialogueComponent::OptionSelected_Implementation(UDataTable* _DataTable,
 	
 }
 
-void UHYDialogueComponent::PlaySounds_Implementation(UFMODEvent* _MelodicSeq, UFMODEvent* _EffortBankLine)
+void UHYDialogueComponent::PlaySounds_Implementation(UFMODEvent* MelodicSeq, UFMODEvent* EffortBankLine)
 {
 }
 
-void UHYDialogueComponent::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
+void UHYDialogueComponent::StartDialogue(AHYPlayerCharacterBase* PlayerRef)
 {
 	// Only move to next line when reply options are not shown.
 	if (false == bIsReplyDialogueOpened)
@@ -90,7 +82,7 @@ void UHYDialogueComponent::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
 		// Should dialogue be ended?
 		if (true == bIsDialogueEnded)
 		{
-			EndDialogue(_PlayerRef);
+			EndDialogue(PlayerRef);
 		}
 		else
 		{
@@ -101,13 +93,13 @@ void UHYDialogueComponent::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
 			{
 				if (DialogueData)
 				{
-					PlaySounds_Implementation(DialogueData->MelodicSFXOneShot, DialogueData->EffortBarkline);
+					PlaySounds(DialogueData->MelodicSFXOneShot, DialogueData->EffortBarkline);
 					DialogueWidget->UpdateDialogue(DialogueData->DialogueText, Name, DialogueData->SpeakerPortrait);
 				}
 			}
 			else
 			{
-				_PlayerRef->RemovePlayerHUDWidget_Implementation();
+				PlayerRef->RemovePlayerHUDWidget();
 	
 				if (DialogueData)
 				{
@@ -116,10 +108,10 @@ void UHYDialogueComponent::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
 					DialogueWidget->Init(DialogueData->DialogueText, Name, DialogueData->SpeakerPortrait, this);
 					DialogueWidget->AddToViewport();
 
-					PlaySounds_Implementation(DialogueData->MelodicSFXOneShot, DialogueData->EffortBarkline);
+					PlaySounds(DialogueData->MelodicSFXOneShot, DialogueData->EffortBarkline);
 
-					_PlayerRef->ControllerRef->SetInputMode(FInputModeGameAndUI());
-					_PlayerRef->ControllerRef->SetShowMouseCursor(true);
+					PlayerRef->ControllerRef->SetInputMode(FInputModeGameAndUI());
+					PlayerRef->ControllerRef->SetShowMouseCursor(true);
 				}
 			}
 
@@ -139,7 +131,7 @@ void UHYDialogueComponent::StartDialogue(AHYPlayerCharacterBase* _PlayerRef)
 	}
 }
 
-void UHYDialogueComponent::EndDialogue(AHYPlayerCharacterBase* _PlayerRef)
+void UHYDialogueComponent::EndDialogue(AHYPlayerCharacterBase* PlayerRef)
 {
 	if (IsValid(DialogueWidget))
 	{
@@ -155,7 +147,7 @@ void UHYDialogueComponent::EndDialogue(AHYPlayerCharacterBase* _PlayerRef)
 
 		bIsEventTrigger = false;
 		DialogueWidget = nullptr;
-		_PlayerRef->AddPlayerHUDWidgetToViewport_Implementation();
+		PlayerRef->AddPlayerHUDWidgetToViewport();
 	}
 }
 
@@ -191,8 +183,8 @@ void UHYDialogueComponent::ShowReplyOptions(TArray<FOptionsDialogue> _ReplyOptio
 
 	for (FOptionsDialogue ReplyOption : _ReplyOptions)
 	{
-		UDialogueOptionWidget* ReplyWidget = CreateWidget<UDialogueOptionWidget>(DialogueOptionWidgetClass);
-		ReplyWidget->Init(ReplyOption.OptionText, this, ReplyOption.RowName, ReplyOption.DataTable);
+		UHYDialogueOptionWidget* ReplyWidget = CreateWidget<UHYDialogueOptionWidget>(DialogueOptionWidgetClass);
+		ReplyWidget->Init(this, ReplyOption.OptionText, ReplyOption.RowName, ReplyOption.DataTable);
 
 		// Add options to dialogue widget
 		DialogueWidget->OptionScrollBox->AddChild(ReplyWidget);
@@ -200,4 +192,27 @@ void UHYDialogueComponent::ShowReplyOptions(TArray<FOptionsDialogue> _ReplyOptio
 		// Disable to move next line by pressing F or clicking script box.
 		DialogueWidget->ReplyingTime();
 	}
+}
+
+void UHYDialogueComponent::SkipDialogues()
+{
+	FText DialogueText;
+	UTexture2D* Portrait;
+	// skip until reply option(choice) opened or dialogue end
+	while (!bIsReplyDialogueOpened && !bIsDialogueEnded)
+	{
+		FDialogueStructure* DialogueData = DataTable->FindRow<FDialogueStructure>(RowName, TEXT(""));
+
+		RowName = DialogueData->NextRow;
+		DataTable = DialogueData->DataTable;
+		bIsDialogueEnded = DialogueData->bIsDialogueEnded;
+		bIsEventTrigger = DialogueData->bIsEventTrigger;
+		bIsReplyDialogueOpened = DialogueData->bIsReplyDialogueOpened;
+		EventTriggerType = DialogueData->EventTriggerType;
+		DialogueText = DialogueData->DialogueText;
+		Portrait = DialogueData->SpeakerPortrait;
+		ReplyDialogueOptions = DialogueData->ReplyOptions;
+	}
+
+	DialogueWidget->UpdateDialogue(DialogueText, Name, Portrait);
 }
