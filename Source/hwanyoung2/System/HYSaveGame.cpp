@@ -1,8 +1,9 @@
 // Copyright 2024. TEAM DAON. All rights reserved.
 
 #include "HYSaveGame.h"
-#include "Inventory/InventoryItem.h"
 
+#include "Inventory/InventoryItem.h"
+#include "Teammates/HYQuestManager.h"
 
 void UHYSaveGame::SetSaveData(FName _CharacterName, FSaveData _SaveData)
 {
@@ -32,5 +33,18 @@ void UHYSaveGame::SetLoreData(FName _CharacterName, TMap<FName, FLore> _LoreData
 void UHYSaveGame::SetCheckTutorial(FName _CharacterName, TMap<FName, bool> _IsTutorialChecked)
 {
 	SaveData[_CharacterName].TutorialChecked = _IsTutorialChecked;
+}
+
+void UHYSaveGame::UpdateClearedPuzzleData(FName CharacterName, FName ClearedPuzzleId)
+{
+	SaveData[CharacterName].ClearedPuzzle.FindOrAdd(ClearedPuzzleId);
+}
+
+void UHYSaveGame::UpdateAffinityData(FName CharacterName, FName NPCName, FAffinityData AffinityAmount)
+{
+	FAffinityData AffinityLevel = SaveData[CharacterName].Affinity.FindOrAdd(NPCName);
+
+	AffinityLevel.AffinityLevel = AffinityAmount.AffinityLevel; // Level
+	AffinityLevel.AffinityPoint = AffinityAmount.AffinityPoint; // Point
 }
 

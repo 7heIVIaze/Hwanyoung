@@ -130,33 +130,6 @@ void AHYPlayerCharacterBase::Tick(float DeltaTime)
 	FVector Location = GetActorLocation();
 	UKismetMaterialLibrary::SetVectorParameterValue(this, MPC_PlayerLocation, TEXT("PlayerLocation"), FLinearColor(Location.X, Location.Y, Location.Z));
 	
-	// Current state is climbing
-	if (bIsClimbing)
-	{
-		bool BodyHit, HeadHit;
-		FHitResult BodyHitResult, HeadHitResult;
-		ClimbingLineTrace(BodyHit, HeadHit, BodyHitResult, HeadHitResult);
-		
-		if (false == BodyHit)
-		{
-			StopClimbing();
-		}
-
-		if (false == HeadHit)
-		{
-			bIsClimbing = false;
-			
-			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-			if (AnimInstance && ClimbingLedgeUpMontage)
-			{
-				AnimInstance->Montage_Play(ClimbingLedgeUpMontage);
-			}
-		}
-
-		FVector TargetRelativeLocation = BodyHitResult.Location + (GetActorForwardVector() * -1.0f * GetCapsuleComponent()->GetUnscaledCapsuleRadius());
-		FRotator TargetRelativeRotation = FRotator(0.0f, UKismetMathLibrary::MakeRotFromX(BodyHitResult.Normal * -1.0f).Yaw, 0.0f);
-		UKismetSystemLibrary::MoveComponentTo(GetCapsuleComponent(), TargetRelativeLocation, TargetRelativeRotation, false, false, 0.2f, false, EMoveComponentAction::Move, FLatentActionInfo());
-	}
 	// ...
 }
 
@@ -450,7 +423,7 @@ float AHYPlayerCharacterBase::Heal(float AmountToHeal)
 	return HPSystem->Heal(AmountToHeal);
 }
 
-void AHYPlayerCharacterBase::Death_Implementation()
+void AHYPlayerCharacterBase::Death_Implementation(AActor* DamageInstigator)
 {
 	if (IsDead())
 	{
@@ -796,7 +769,7 @@ bool AHYPlayerCharacterBase::TakeDamage(FDamageInfo DamageInfo, AActor* DamageIn
 		case EDamageType::Freeze:
 		{
 			GetWorld()->GetTimerManager().SetTimer(PlayerDOTDamageTimer, this, &AHYPlayerCharacterBase::StopDOT, DamageDuration, false);
-			HPSystem->StartDOT_Implementation(DamageInfo, DamageInstigator, DamageInterval);
+			HPSystem->StartDOT(DamageInfo, DamageInstigator, DamageInterval);
 		}
 		break;
 		default:
@@ -808,7 +781,7 @@ bool AHYPlayerCharacterBase::TakeDamage(FDamageInfo DamageInfo, AActor* DamageIn
 
 void AHYPlayerCharacterBase::StopDOT()
 {
-	HPSystem->StopDOT_Implementation();
+	HPSystem->StopDOT();
 	GetWorld()->GetTimerManager().ClearTimer(PlayerDOTDamageTimer);
 }
 
@@ -822,7 +795,7 @@ bool AHYPlayerCharacterBase::Buff(FBuffableInfo BuffableInfo)
 	bool bHasBeenBuffed = false;
 	FTimerHandle BuffTimer;
 	FVector Location;
-	int iVFXIndex;
+	int VFXIndex;
 	// If the buff is applied to status.(there is no CC buffs)
 	if (EBuffableCategory::Stat == BuffableInfo.BuffableCategory)
 	{
@@ -835,35 +808,39 @@ bool AHYPlayerCharacterBase::Buff(FBuffableInfo BuffableInfo)
 			// those two buff types affect to AttributeSet actor component
 			case ECharacterState::DefenseUp:
 			{
-				iVFXIndex = 1;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = AttributeSet->Buff(BuffableInfo.StatBuffInfo);
 				break;
 			}
 			case ECharacterState::Empower:
 			{
-				iVFXIndex = 5;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = AttributeSet->Buff(BuffableInfo.StatBuffInfo);
 				break;
 			}
 			case ECharacterState::HPBuff:
 			{
-				iVFXIndex = 7;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = HPSystem->Buff(BuffableInfo.Magnitude);
 				break;
 			}
 			case ECharacterState::MPBuff:
 			{
-				iVFXIndex = 8;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = MPSystem->Buff(BuffableInfo.Magnitude);
 				break;
 			}
+			// None is not buff type, so just return.
+			case ECharacterState::None:
+			{
+				return;
+			}
 		}
 
-		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([&, BuffableInfo]()
+		// The BuffableType enum is designed to be used as bit flags, so the index for VFX can be calculated by finding the position of the single set bit in the BuffableType value.
+		VFXIndex = FMath::FloorLog2(static_cast<int32>(BuffableInfo.BuffableType));
+
+		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([this, BuffableInfo]()
 		{
 			// There is no crowdcontrol buffs, so ignore CC case.
 			// But exception handling
@@ -895,7 +872,7 @@ bool AHYPlayerCharacterBase::Buff(FBuffableInfo BuffableInfo)
 		else
 		{
 			UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-				NS_Buffables[iVFXIndex], GetMesh(), TEXT("None"),
+				NS_Buffables[VFXIndex], GetMesh(), TEXT("None"),
 				Location, FRotator(0.0f, 0.0f, 0.0f),
 				EAttachLocation::KeepRelativeOffset, true
 			);
@@ -912,7 +889,7 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 	bool bHasBeenBuffed = false;
 	FTimerHandle BuffTimer;
 	FVector Location;
-	int iVFXIndex;
+	int VFXIndex;
 
 	// If the debuff is applied to status.
 	if (EBuffableCategory::Stat == BuffableInfo.BuffableCategory)
@@ -926,7 +903,6 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 			// Vulnerable debuff types affect to AttributeSet actor component
 			case ECharacterState::Vulnerable:
 			{
-				iVFXIndex = 1;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = AttributeSet->Debuff(BuffableInfo.StatBuffInfo);
 				break;
@@ -934,7 +910,6 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 			// slowed debuff affects to character movement component.
 			case ECharacterState::Slowed:
 			{
-				iVFXIndex = 2;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				GetCharacterMovement()->MaxWalkSpeed *= (1 - BuffableInfo.Magnitude);
 				bHasBeenBuffed = true;
@@ -943,15 +918,22 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 			// Weakened debuff types affect to AttributeSet actor component
 			case ECharacterState::Weakened:
 			{
-				iVFXIndex = 6;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = AttributeSet->Debuff(BuffableInfo.StatBuffInfo);
 				break;
 			}
+			// None is not buff type, so just return.
+			case ECharacterState::None:
+			{
+				return;
+			}
 		}
 
+		// The BuffableType enum is designed to be used as bit flags, so the index for VFX can be calculated by finding the position of the single set bit in the BuffableType value.
+		VFXIndex = FMath::FloorLog2(static_cast<int32>(BuffableInfo.BuffableType));
+
 		// For Stat Debuff timer
-		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([&, BuffableInfo]()
+		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([this, BuffableInfo]()
 		{
 			// Reduce current debuff type numbers
 			StatStances[BuffableInfo.BuffableType]--;
@@ -979,7 +961,7 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 		else
 		{
 			UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-				NS_Buffables[iVFXIndex], GetMesh(), TEXT("None"),
+				NS_Buffables[VFXIndex], GetMesh(), TEXT("None"),
 				Location, FRotator(0.0f, 0.0f, 0.0f),
 				EAttachLocation::KeepRelativeOffset, true);
 
@@ -1007,7 +989,6 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 			// Dizzy effects
 			case ECharacterState::Dizzy:
 			{
-				iVFXIndex = 3;
 				Location = FVector(0.0f, 0.0f, 180.0f);
 				DisableInput(ControllerRef);
 				bHasBeenBuffed = true;
@@ -1015,7 +996,6 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 			}
 			case ECharacterState::Stunned:
 			{
-				iVFXIndex = 4;
 				Location = FVector(0.0f, 0.0f, 180.0f);
 				DisableInput(ControllerRef);
 				bHasBeenBuffed = true;
@@ -1024,7 +1004,6 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 			// Silence and blind are not prepared yet.
 			case ECharacterState::Silence:
 			{
-				iVFXIndex = 9;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = true;
 				break;
@@ -1032,15 +1011,22 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 
 			case ECharacterState::Blind:
 			{
-				iVFXIndex = 10;
 				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
 				bHasBeenBuffed = true;
 				break;
 			}
+			// None is not buff type, so just return.
+			case ECharacterState::None:
+			{
+				return;
+			}
 		}
 
+		// The BuffableType enum is designed to be used as bit flags, so the index for VFX can be calculated by finding the position of the single set bit in the BuffableType value.
+		VFXIndex = FMath::FloorLog2(static_cast<int32>(BuffableInfo.BuffableType));
+
 		// For CC Debuff timer
-		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([&, BuffableInfo]()
+		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([this, BuffableInfo]()
 		{
 			// Remove this type from character stance
 			SetCharacterState(BuffableInfo.BuffableType, false);
@@ -1067,7 +1053,7 @@ bool AHYPlayerCharacterBase::Debuff(FBuffableInfo BuffableInfo)
 		else
 		{
 			UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-				NS_Buffables[iVFXIndex], GetMesh(), TEXT("None"),
+				NS_Buffables[VFXIndex], GetMesh(), TEXT("None"),
 				Location, FRotator(0.0f, 0.0f, 0.0f), 
 				EAttachLocation::KeepRelativeOffset, true);
 

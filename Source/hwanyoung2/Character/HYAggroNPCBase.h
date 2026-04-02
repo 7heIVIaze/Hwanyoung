@@ -9,6 +9,8 @@
 #include "Interfaces/CombatSystem.h"
 #include "Interfaces/Dialogueable.h"
 #include "Interfaces/Damagable.h"
+#include "Interfaces/Buffable.h"
+#include "Components/TimelineComponent.h"
 #include "HYAggroNPCBase.generated.h"
 
 
@@ -22,7 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueEnd);
  * 
  */
 UCLASS()
-class HWANYOUNG2_API AHYAggroNPCBase : public AHYEnemyBase, public ICharacterState, public INPCBehavior, public ICombatSystem, public IDialogueable, public IDamagable
+class HWANYOUNG2_API AHYAggroNPCBase : public AHYEnemyBase, public ICharacterState, public INPCBehavior, public ICombatSystem, public IDialogueable, public IDamagable, public IBuffable
 {
 	GENERATED_BODY()
 
@@ -52,14 +54,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void InitAggroNPCState();
 
+	UFUNCTION(BlueprintCallable)
+	virtual void DamageTaken(EDamageReactionType DamageResponse, FCrowdControlInfo CrowdControlInfo, AActor* DamageInstigator, const FHitResult& Hit);
 
 #pragma region Teammates Did(Already Implemented)
 	UFUNCTION(BlueprintCallable)
 	virtual void DealDamage(AActor* HitActor, const FHitResult& HitResult) {}
-
-	UFUNCTION(BlueprintCallable)
-	virtual void DamageTaken(EDamageReactionType DamageResponse, FCrowdControlInfo CrowdControlInfo, AActor* DamageInstigator, const FHitResult& Hit);
-
 	UFUNCTION(BlueprintCallable)
 	virtual void AttackAnimStart();
 
@@ -74,6 +74,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	virtual void OnDissolveFinished();
+
 #pragma endregion
 
 #pragma endregion
@@ -100,6 +101,37 @@ public:
 #pragma endregion
 
 #pragma region Interfaces
+	/// <summary>
+	/// Apply Buff to NPC.
+	/// </summary>
+	/// <param name="BuffInfo">BuffInfo has all the information about the buff, such as buff type, duration, magnitude, etc.</param>
+	/// <returns>Is buff applied</returns>
+	UFUNCTION(BlueprintCallable)
+	virtual bool Buff(FBuffableInfo BuffInfo) override;
+
+	/// <summary>
+	/// Remove buff from NPC.
+	/// </summary>
+	/// <param name="BuffInfo">BuffInfo has all the information about the buff, such as buff type, duration, magnitude, etc.</param>
+	/// <returns>Is buff removed</returns>
+	UFUNCTION(BlueprintCallable)
+	virtual bool RemoveBuff(FBuffableInfo BuffInfo) override;
+
+	/// <summary>
+	/// Apply debuff to NPC.
+	/// </summary>
+	/// <param name="BuffInfo">BuffInfo has all the information about the buff, such as buff type, duration, magnitude, etc.</param>
+	/// <returns>Is debuff applied</returns>
+	UFUNCTION(BlueprintCallable)
+	virtual bool Debuff(FBuffableInfo BuffInfo) override;
+
+	/// <summary>
+	/// Remove debuff from NPC.
+	/// </summary>
+	/// <param name="BuffInfo">BuffInfo has all the information about the buff, such as buff type, duration, magnitude, etc.</param>
+	/// <returns>Is debuff removed</returns>
+	UFUNCTION(BlueprintCallable)
+	virtual bool RemoveDebuff(FBuffableInfo BuffInfo) override;
 
 #pragma region Teammates Did(Already Implemented)
 	UFUNCTION(BlueprintCallable)
@@ -209,6 +241,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<class UHYHPSystem> HPSystem;
 
+	// Attribute System
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	TObjectPtr<class UHYAttributeSystem> AttributeSet;
+
 #pragma endregion
 
 #pragma region Variables
@@ -265,13 +301,32 @@ public:
 
 	// Blood Hit VFX(Particles)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blood")
-	TObjectPtr<UNiagaraSystem> NS_DarkEnergy;
+	class UNiagaraSystem* NS_DarkEnergy;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blood")
 	FVector BloodDecalSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blood")
 	FVector HitParticleScale;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hit_VFX")
+	TArray<UNiagaraSystem*> NS_Buffables;
+
+	// This is for character state. It has int value for each state, and it can be used for various purposes such as calculating damage, changing behavior, etc.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stat")
+	TMap<ECharacterState, int> StatStance;
+
+	// The timer handle for each character state. It can be used for various purposes such as calculating damage over time, changing behavior after certain time, etc.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
+	TMap<ECharacterState, FTimerHandle> StanceTimer;
+
+	// The particles for each character state.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
+	TMap<ECharacterState, class UNiagaraComponent*> StanceParticles;
+
+	// For managing all debuffs(to remove them using cleanse)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Buffable")
+	TArray<FAppliedDebuffInfo> AppliedStatDebuffs;
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Timer", meta = (AllowPrivateAccess = "true"))

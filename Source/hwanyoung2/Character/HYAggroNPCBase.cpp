@@ -18,6 +18,7 @@
 #include "HYHPSystem.h"
 #include "HYGameInstance.h"
 #include "Stats/HYCombatSystem.h"
+#include "Stats/HYAttributeSystem.h"
 #include "DialogueableSystem/HYDialogueComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "System/HYGroupManagerSubsystem.h"
@@ -38,6 +39,8 @@ AHYAggroNPCBase::AHYAggroNPCBase()
 
 	Widget = CreateDefaultSubobject<UWidgetComponent>(TEXT("Widget"));
 	Widget->SetupAttachment(RootComponent);
+
+	AttributeSet = CreateDefaultSubobject<UHYAttributeSystem>(TEXT("AttributeSet"));
 }
 #pragma endregion
 
@@ -228,6 +231,277 @@ void AHYAggroNPCBase::ToggleParryTiming(bool IsParryable)
 	bCanBeParried = IsParryable;
 }
 
+bool AHYAggroNPCBase::Buff(FBuffableInfo BuffInfo)
+{
+	bool bHasBeenBuffed = false;
+	FVector Location;
+	int VFXIndex;
+
+	// Only stat buff
+	if (BuffInfo.BuffableCategory == EBuffableCategory::Stat)
+	{
+		SetCharacterState(BuffInfo.BuffableType, true);
+
+		StatStance.FindOrAdd(BuffInfo.BuffableType)++;
+
+		// This is for buff. So ignore the debuff types
+		switch (BuffInfo.BuffableType)
+		{
+			case ECharacterState::DefenseUp:
+				bHasBeenBuffed = AttributeSet->Buff(BuffInfo.StatBuffInfo);
+				break;
+			case ECharacterState::Empower:
+				bHasBeenBuffed = AttributeSet->Buff(BuffInfo.StatBuffInfo);
+				break;
+			case ECharacterState::HPBuff:
+				bHasBeenBuffed = HPSystem->Buff(BuffInfo.Magnitude);
+				break;
+				// None is not buff type, so just return.
+			case ECharacterState::None:
+				return;
+		}
+
+		// The BuffableType enum is designed to be used as bit flags, so the index for VFX can be calculated by finding the position of the single set bit in the BuffableType value.
+		VFXIndex = FMath::FloorLog2(static_cast<int32>(BuffInfo.BuffableType));
+
+		FTimerHandle BuffTimer;
+		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([this, BuffInfo]()
+		{
+			// There is no crowdcontrol buffs, so ignore CC case.
+			// But exception handling
+			if (EBuffableCategory::Stat == BuffInfo.BuffableCategory)
+			{
+				// Reduce current buff type numbers
+				StatStance[BuffInfo.BuffableType]--;
+
+				// If this buff type is last one, then remove this type from character stance
+				if (StatStance[BuffInfo.BuffableType] < 0)
+				{
+					SetCharacterState(BuffInfo.BuffableType, false);
+
+					// Deactivate the particle
+					StanceParticles[BuffInfo.BuffableType]->Deactivate();
+				}
+
+				// And remove this buff
+				RemoveBuff(BuffInfo);
+			}
+		}), BuffInfo.Duration, false);
+
+		// If the particle system is in the map, reset system
+		if (StanceParticles.Contains(BuffInfo.BuffableType))
+		{
+			StanceParticles[BuffInfo.BuffableType]->ResetSystem();
+		}
+		// else, spawn system.
+		else
+		{
+			UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				NS_Buffables[VFXIndex], GetMesh(), TEXT("None"),
+				Location, FRotator(0.0f, 0.0f, 0.0f),
+				EAttachLocation::KeepRelativeOffset, true);
+
+			StanceParticles[BuffInfo.BuffableType] = NiagaraComp;
+		}
+	}
+
+	return bHasBeenBuffed;
+}
+
+bool AHYAggroNPCBase::RemoveBuff(FBuffableInfo BuffInfo)
+{
+	bool bHasRemovedBuff = false;
+	if(BuffInfo.BuffableCategory == EBuffableCategory::Stat)
+	{
+		switch (BuffInfo.BuffableType)
+		{
+			case ECharacterState::DefenseUp:
+				bHasRemovedBuff = AttributeSet->RemoveBuff(BuffInfo.StatBuffInfo);
+				break;
+			case ECharacterState::Empower:
+				bHasRemovedBuff = AttributeSet->RemoveBuff(BuffInfo.StatBuffInfo);
+				break;
+			case ECharacterState::HPBuff:
+				bHasRemovedBuff = HPSystem->RemoveBuff(BuffInfo.Magnitude);
+				break;
+			// None is not buff type, so just return.
+			case ECharacterState::None:
+				return;
+		}
+	}
+
+	return bHasRemovedBuff;
+}
+
+bool AHYAggroNPCBase::Debuff(FBuffableInfo BuffInfo)
+{
+	bool bHasBeenBuffed = false;
+	FTimerHandle BuffTimer;
+	FVector Location;
+	int VFXIndex;
+
+	// If the debuff is applied to status.
+	if (EBuffableCategory::Stat == BuffInfo.BuffableCategory)
+	{
+		SetCharacterState(BuffInfo.BuffableType, true);
+		StatStance[BuffInfo.BuffableType]++;
+
+		// Different effect per debuff type
+		switch (BuffInfo.BuffableType)
+		{
+			// Vulnerable debuff types affect to AttributeSet actor component
+			case ECharacterState::Vulnerable:
+				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
+				bHasBeenBuffed = AttributeSet->Debuff(BuffInfo.StatBuffInfo);
+				break;
+			// slowed debuff affects to character movement component.
+			case ECharacterState::Slowed:
+				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
+				GetCharacterMovement()->MaxWalkSpeed *= (1 - BuffInfo.Magnitude);
+				bHasBeenBuffed = true;
+				break;
+			// Weakened debuff types affect to AttributeSet actor component
+			case ECharacterState::Weakened:
+				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
+				bHasBeenBuffed = AttributeSet->Debuff(BuffInfo.StatBuffInfo);
+				break;
+			// None is not buff type, so just return.
+			case ECharacterState::None:
+				return;
+		}
+
+		// The BuffableType enum is designed to be used as bit flags, so the index for VFX can be calculated by finding the position of the single set bit in the BuffableType value.
+		VFXIndex = FMath::FloorLog2(static_cast<int32>(BuffInfo.BuffableType));
+
+		// For Stat Debuff timer
+		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([this, BuffInfo]()
+		{
+			// Reduce current debuff type numbers
+			StatStance[BuffInfo.BuffableType]--;
+
+			// If this buff type is last one, then remove this type from character stance
+			if (StatStance[BuffInfo.BuffableType] < 0)
+			{
+				SetCharacterState(BuffInfo.BuffableType, false);
+			}
+			// Deactivate the particle
+			StanceParticles[BuffInfo.BuffableType]->Deactivate();
+
+			// And remove this debuff
+			RemoveDebuff(BuffInfo);
+		}), BuffInfo.Duration, false);
+
+		AppliedStatDebuffs.Add(FAppliedDebuffInfo(BuffInfo, BuffTimer));
+
+		// If the particle system is in the map, reset system
+		if (StanceParticles.Contains(BuffInfo.BuffableType))
+		{
+			StanceParticles[BuffInfo.BuffableType]->ResetSystem();
+		}
+		// else, spawn system.
+		else
+		{
+			UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				NS_Buffables[VFXIndex], GetMesh(), TEXT("None"),
+				Location, FRotator(0.0f, 0.0f, 0.0f),
+				EAttachLocation::KeepRelativeOffset, true);
+
+			StanceParticles[BuffInfo.BuffableType] = NiagaraComp;
+		}
+
+	}
+	// If the debuff is crowd control
+	else
+	{
+		SetCharacterState(BuffInfo.BuffableType, true);
+
+		// If the timer is in map, and it is active, then clear
+		if (StanceTimer.Contains(BuffInfo.BuffableType))
+		{
+			if (GetWorldTimerManager().IsTimerActive(StanceTimer[BuffInfo.BuffableType]))
+			{
+				GetWorldTimerManager().ClearTimer(StanceTimer[BuffInfo.BuffableType]);
+			}
+		}
+
+		// Different effect per debuff type
+		switch (BuffInfo.BuffableType)
+		{
+			// Dizzy effects
+			case ECharacterState::Dizzy:
+				Location = FVector(0.0f, 0.0f, 180.0f);
+				AICBase->SetStateAsFrozen();
+				bHasBeenBuffed = true;
+				break;
+			case ECharacterState::Stunned:
+				Location = FVector(0.0f, 0.0f, 180.0f);
+				AICBase->SetStateAsFrozen();
+				bHasBeenBuffed = true;
+				break;
+			// Silence and blind are not prepared yet.
+			case ECharacterState::Silence:
+				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
+				// Silence effect is not implemented yet, but set character state for future use.
+				bHasBeenBuffed = true;
+				break;
+
+			case ECharacterState::Blind:
+				Location = FVector(0.0f, 0.0f, 0.0f); // the vfx is not prepared yet.
+				// Silence effect is not implemented yet, but set character state for future use.
+				bHasBeenBuffed = true;
+				break;
+				// None is not buff type, so just return.
+			case ECharacterState::None:
+				return;
+		}
+
+		// The BuffableType enum is designed to be used as bit flags, so the index for VFX can be calculated by finding the position of the single set bit in the BuffableType value.
+		VFXIndex = FMath::FloorLog2(static_cast<int32>(BuffInfo.BuffableType));
+
+		// For CC Debuff timer
+		GetWorldTimerManager().SetTimer(BuffTimer, FTimerDelegate::CreateLambda([this, BuffInfo]()
+		{
+			// Remove this type from character stance
+			SetCharacterState(BuffInfo.BuffableType, false);
+
+			// And remove this debuff
+			RemoveDebuff(BuffInfo);
+
+			// Remove the timer handle ref in the map
+			StanceTimer.Remove(BuffInfo.BuffableType);
+
+			// Deactivate the particle
+			StanceParticles[BuffInfo.BuffableType]->Deactivate();
+
+		}), BuffInfo.Duration, false);
+
+		StanceTimer[BuffInfo.BuffableType] = BuffTimer;
+
+		// If the particle system is in the map, reset system
+		if (StanceParticles.Contains(BuffInfo.BuffableType))
+		{
+			StanceParticles[BuffInfo.BuffableType]->ResetSystem();
+		}
+		// else, spawn system.
+		else
+		{
+			UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				NS_Buffables[VFXIndex], GetMesh(), TEXT("None"),
+				Location, FRotator(0.0f, 0.0f, 0.0f),
+				EAttachLocation::KeepRelativeOffset, true);
+
+			StanceParticles[BuffInfo.BuffableType] = NiagaraComp;
+		}
+	}
+
+	return bHasBeenBuffed;
+}
+
+bool AHYAggroNPCBase::RemoveDebuff(FBuffableInfo BuffInfo)
+{
+	return false;
+}
+
 void AHYAggroNPCBase::DamageTaken(EDamageReactionType DamageResponse, FCrowdControlInfo CrowdControlInfo,
 	AActor* DamageInstigator, const FHitResult& Hit)
 {
@@ -391,6 +665,7 @@ void AHYAggroNPCBase::EndHitStop()
 {
 	CustomTimeDilation = 1.0f;
 }
+
 void AHYAggroNPCBase::StopDOT()
 {
 	HPSystem->StopDOT();
@@ -465,7 +740,12 @@ bool AHYAggroNPCBase::TakeDamage(FDamageInfo DamageInfo, AActor* DamageInstigato
 
 bool AHYAggroNPCBase::AttackStart(AActor* AttackTarget, int TokensNeeded)
 {
-	bool bResult = Cast<AHYPlayerCharacterBase>(AttackTarget)->ReserveAttackToken(TokensNeeded);
+	bool bResult = false;
+
+	if (IDamagable* Damagable = Cast<IDamagable>(AttackTarget))
+	{
+		bResult = Damagable->ReserveAttackToken(TokensNeeded);
+	}
 
 	if (bResult)
 	{
@@ -478,36 +758,39 @@ bool AHYAggroNPCBase::AttackStart(AActor* AttackTarget, int TokensNeeded)
 
 void AHYAggroNPCBase::AttackEnd(AActor* AttackTarget)
 {
-	Cast<AHYPlayerCharacterBase>(AttackTarget)->ReturnAttackToken(TokenUsedInCurrentAttack);
-	StoreAttackTokens(AttackTarget, TokenUsedInCurrentAttack - 1);
-	OnAttackEnd.Broadcast();
+	if (IDamagable* Damagable = Cast<IDamagable>(AttackTarget))
+	{
+		Damagable->ReturnAttackToken(TokenUsedInCurrentAttack);
+		StoreAttackTokens(AttackTarget, -TokenUsedInCurrentAttack);
+		OnAttackEnd.Broadcast();
+	}
 }
 
 float AHYAggroNPCBase::SetMovementSpeed(ENPCMovementSpeed MovementType)
 {
 	CurrentMovementType = MovementType;
-	float fSpeed = 0.0f;
+	float Speed = 0.0f;
 
 	switch (CurrentMovementType)
 	{
 	case ENPCMovementSpeed::Idle:
 	{
-		fSpeed = 0.0f;
+		Speed = 0.0f;
 	}
 	break;
 	case ENPCMovementSpeed::Walking:
 	{
-		fSpeed = 150.0f;
+		Speed = 150.0f;
 	}
 	break;
 	case ENPCMovementSpeed::Jogging:
 	{
-		fSpeed = 200.0f;
+		Speed = 200.0f;
 	}
 	break;
 	case ENPCMovementSpeed::Sprinting:
 	{
-		fSpeed = 300.0f;
+		Speed = 300.0f;
 	}
 	break;
 	}
@@ -515,11 +798,11 @@ float AHYAggroNPCBase::SetMovementSpeed(ENPCMovementSpeed MovementType)
 	// Slow debuff
 	if ((CharacterState & static_cast<uint8>(ECharacterState::Slowed)) != 0)
 	{
-		fSpeed = fSpeed * 0.4f;
+		Speed = Speed * 0.4f;
 	}
 
-	GetCharacterMovement()->MaxWalkSpeed = fSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = Speed;
 
-	return fSpeed;
+	return Speed;
 }
 #pragma endregion

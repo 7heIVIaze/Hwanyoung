@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "DataAssets/HwanyoungType.h"
 #include "HYSaveGame.generated.h"
 
 /**
@@ -78,6 +79,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")
 	TMap<FName, FVector> SavedBaseCampLocation;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save Data")
+	TArray<FString> ActivatedBeacon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle Data", meta = (AllowPrivateAccess = "true"))
+	TSet<FName> ClearedPuzzle;
+
+	// Key: NPC's name, Value(int, int): affinity level and affinity amount.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Affinity Data", meta = (AllowPrivateAccess = "true"))
+	TMap<FName, FAffinityData> Affinity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest Data", meta = (AllowPrivateAccess = "true"))
+	TMap<FName, struct FQuestProgress> SavedActiveQuests;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest Data", meta = (AllowPrivateAccess = "true"))
+	TSet<FName> SavedCompletedQuests;
+
 public:
 	FSaveData()
 		: HonbaekAmount(0)
@@ -88,22 +105,31 @@ public:
 		, SavedBuffItemList(TArray<FInventoryItem>())
 		, Journal(TSet<FName>())
 		, SavedBaseCampLocation(TMap<FName, FVector>())
-	{
-	}
+		, ActivatedBeacon(TArray<FString>())
+		, ClearedPuzzle(TSet<FName>())
+		, Affinity(TMap<FName, FAffinityData>())
+		, SavedActiveQuests(TMap<FName, struct FQuestProgress>())
+		, SavedCompletedQuests(TSet<FName>())
+	{}
 
-	FSaveData(int inHonbaekAmount, TArray<FInventoryItem> inSavedInventory, TMap<FName, FTransform> inLevelTransform,
-		TMap<FName, FLore> inLoreData, TMap<FName, bool> inCheckedTutorial, TArray<FInventoryItem> inBuffItemList,
-		TSet<FName> inJournal, TMap<FName, FVector> inSavedLocation)
-		: HonbaekAmount(inHonbaekAmount)
-		, SavedInventoryItem(inSavedInventory)
-		, SavedLevelTransform(inLevelTransform)
-		, LoreData(inLoreData)
-		, TutorialChecked(inCheckedTutorial)
-		, SavedBuffItemList(inBuffItemList)
-		, Journal(inJournal)
-		, SavedBaseCampLocation(inSavedLocation)
-	{
-	}
+	FSaveData(int NewHonbaekAmount, TArray<FInventoryItem> NewSavedInventory, TMap<FName, FTransform> NewLevelTransform,
+		TMap<FName, FLore> NewLoreData, TMap<FName, bool> NewCheckedTutorial, TArray<FInventoryItem> NewBuffItemList,
+		TSet<FName> NewJournal, TMap<FName, FVector> NewSavedLocation, TArray<FString> Beacon, TSet<FName> NewClearedPuzzle,
+		TMap<FName, FAffinityData> NewAffinity, TMap<FName, FQuestProgress> NewActiveQuest, TSet<FName> NewCompletedQuest)
+		: HonbaekAmount(NewHonbaekAmount)
+		, SavedInventoryItem(NewSavedInventory)
+		, SavedLevelTransform(NewLevelTransform)
+		, LoreData(NewLoreData)
+		, TutorialChecked(NewCheckedTutorial)
+		, SavedBuffItemList(NewBuffItemList)
+		, Journal(NewJournal)
+		, SavedBaseCampLocation(NewSavedLocation)
+		, ActivatedBeacon(Beacon)
+		, ClearedPuzzle(NewClearedPuzzle)
+		, Affinity(NewAffinity)
+		, SavedActiveQuests(NewActiveQuest)
+		, SavedCompletedQuests(NewCompletedQuest)
+	{}
 };
 
 UCLASS()
@@ -146,6 +172,13 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetCheckTutorial(FName _CharacterName, TMap<FName, bool> _IsTutorialChecked);
+
+	UFUNCTION(BlueprintCallable, Category = "Puzzle Data")
+	void UpdateClearedPuzzleData(FName CharacterName, FName ClearedPuzzleId);
+
+	UFUNCTION(BlueprintCallable, Category = "Affinity Data")
+	void UpdateAffinityData(FName CharacterName, FName NPCName, FAffinityData AffinityAmount);
+
 
 #pragma region Getter
 	UFUNCTION(BlueprintCallable)

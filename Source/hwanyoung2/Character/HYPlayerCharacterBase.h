@@ -101,10 +101,10 @@ public:
 #pragma region EventGraphs
 	// Handling death of the character (physics)
 	UFUNCTION(BlueprintNativeEvent)
-	void Death();
+	void Death(AActor* DamageInstigator);
 	
 	// Handling death of the character(physics)
-	virtual void Death_Implementation();
+	virtual void Death_Implementation(AActor* DamageInstigator);
 	// Toggle Inventory Widget
 	UFUNCTION(BlueprintNativeEvent)	// Declare as NativeEvent so that it can be changed in blueprint.
 	void ToggleInventory();
