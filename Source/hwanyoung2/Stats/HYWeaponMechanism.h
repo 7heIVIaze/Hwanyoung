@@ -9,7 +9,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAimBegin);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAimEnd);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDrawOngoing, float, _MaxDrawTime, float, _CurrentDrawTime);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDrawOngoing, float, MaxDrawTime, float, CurrentDrawTime);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDrawEnd);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -33,7 +33,7 @@ public:
 	// Equip current weapon
 	// @param : weapon index = index of weapon to equip 
 	UFUNCTION(BlueprintCallable)
-	void EquipWeapon(int _WeaponIndex);
+	void EquipWeapon(int WeaponIndex);
 
 	// Unequip current weapon
 	UFUNCTION(BlueprintCallable)
@@ -57,7 +57,7 @@ public:
 
 	// Calculate the projectile damage while drawing
 	UFUNCTION(BlueprintCallable)
-	bool CalculateProjectileDamage(float _Strength, float& OutGeneratedDamage);
+	bool CalculateProjectileDamage(float Strength, float& OutGeneratedDamage);
 
 	// Trace melee weapon mesh
 	UFUNCTION(BlueprintCallable)
@@ -109,20 +109,20 @@ public:
 
 	// A function to bind to the ArrowRef's arrow collision event dispatcher that deals damage to the hit actor
 	UFUNCTION(BlueprintNativeEvent)
-	void DamageActor(float _Strength, AActor* _HitActor, const FHitResult& _HitResult);
+	void DamageActor(float Strength, AActor* HitActor, const FHitResult& HitResult);
 
-	virtual void DamageActor_Implementation(float _Strength, AActor* _HitActor, const FHitResult& _HitResult);
+	virtual void DamageActor_Implementation(float Strength, AActor* HitActor, const FHitResult& HitResult);
 
 #pragma endregion
 
 #pragma region Inferfaces
 	// Toggle weapon trace.
 	UFUNCTION(BlueprintCallable)
-	virtual void ToggleWeaponTrace(bool _WeaponTraceOn) override;
+	virtual void ToggleWeaponTrace(bool WeaponTraceOn) override;
 
 	// Get Mesh : currently unused
 	UFUNCTION(BlueprintCallable)
-	virtual USkeletalMeshComponent* GetCharacterMesh() override { return WeaponRef->GetWeaponMesh(); }
+	virtual USkeletalMeshComponent* GetCharacterMesh() override;
 #pragma endregion
 
 #pragma region Setter/Getter

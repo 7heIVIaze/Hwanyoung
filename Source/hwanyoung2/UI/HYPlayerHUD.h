@@ -17,9 +17,13 @@ class HWANYOUNG2_API UHYPlayerHUD : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 
+#pragma region Teammates Did(Already Implemented)
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials", meta = (BindWidget))
 	TObjectPtr<class UImage> LowHPFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials", meta = (BindWidget))
+	TObjectPtr<class UProgressBar> ESkillBar;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Materials")
@@ -27,4 +31,5 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Materials")
 	class UMaterialInterface* M_LowHPOverlay;
+#pragma endregion
 };

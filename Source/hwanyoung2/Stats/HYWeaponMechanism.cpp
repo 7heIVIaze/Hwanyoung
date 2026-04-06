@@ -54,9 +54,9 @@ void UHYWeaponMechanism::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	}
 }
 
-void UHYWeaponMechanism::EquipWeapon(int _WeaponIndex)
+void UHYWeaponMechanism::EquipWeapon(int WeaponIndex)
 {
-	switch (_WeaponIndex)
+	switch (WeaponIndex)
 	{
 		// Close combat
 		case 0:
@@ -181,7 +181,7 @@ FVector UHYWeaponMechanism::CalculateAimDirection()
 	return vDirection;
 }
 
-bool UHYWeaponMechanism::CalculateProjectileDamage(float _Strength, float& OutGeneratedDamage)
+bool UHYWeaponMechanism::CalculateProjectileDamage(float Strength, float& OutGeneratedDamage)
 {
 	bool bIsCritical = false;
 	if (nullptr != WeaponRef)
@@ -194,7 +194,7 @@ bool UHYWeaponMechanism::CalculateProjectileDamage(float _Strength, float& OutGe
 		float fCurrentDamage = (bIsCritical) ? AttributeSystem->GetCurrentCriticalDamage() : AttributeSystem->GetCurrentPhysicalDamage();
 
 		// To make the normal damage 150, multiply value.
-		OutGeneratedDamage = _Strength * 0.0005f * fCurrentDamage;
+		OutGeneratedDamage = Strength * 0.0005f * fCurrentDamage;
 	}
 
 	return bIsCritical;
@@ -237,7 +237,7 @@ void UHYWeaponMechanism::PerformWeaponTrace()
 					float GeneratedDamage = 0.0f;
 
 					// Get random damage from weapon reference
-					bool bIsCritical = WeaponRef->GenerateRandomDamageNumber(PlayerRef->GetComboFactor(), GeneratedDamage);
+					bool bIsCritical = WeaponRef->GenerateRandomDamageNumber(PlayerRef->ComboFactor, GeneratedDamage);
 
 					// Create Damage structure
 					FDamageInfo DamageInfo(GeneratedDamage, EDamageType::NormalMeleeSlash, 
@@ -396,28 +396,28 @@ void UHYWeaponMechanism::IncrementDrawTime_Implementation()
 	OnDrawOngoing.Broadcast(BowRef->GetMaxDrawTime(), DrawTime);
 }
 
-void UHYWeaponMechanism::DamageActor_Implementation(float _Strength, AActor* _HitActor, const FHitResult& _HitResult)
+void UHYWeaponMechanism::DamageActor_Implementation(float Strength, AActor* HitActor, const FHitResult& HitResult)
 {
 	// Set up damage structure.
 	float GeneratedDamage = 0.0f;
-	_Strength *= 0.0005;
-	bool bIsCritical = WeaponRef->GenerateRandomDamageNumber(_Strength, GeneratedDamage);
+	Strength *= 0.0005;
+	bool bIsCritical = WeaponRef->GenerateRandomDamageNumber(Strength, GeneratedDamage);
 	FDamageInfo DamageInfo(GeneratedDamage, EDamageType::Projectile, EDamageReactionType::ProjectileHitReaction,
 		FCrowdControlInfo(), false, true, true, false);
 	
 	// Deal damage to the hit actor
-	bool bHasTakenDamage = Cast<AHYAggroNPCBase>(_HitActor)->TakeDamage(DamageInfo, PlayerRef, 0.0f, 0.0f, _HitResult);
+	bool bHasTakenDamage = Cast<AHYAggroNPCBase>(HitActor)->TakeDamage(DamageInfo, PlayerRef, 0.0f, 0.0f, HitResult);
 
 	if (bHasTakenDamage)
 	{
 		// Do only when damaged actor is enemy base
-		if (AHYEnemyBase* DamagedActor = Cast<AHYEnemyBase>(_HitActor))
+		if (AHYEnemyBase* DamagedActor = Cast<AHYEnemyBase>(HitActor))
 		{
 			// Make Damage Event
 			UAISense_Damage::ReportDamageEvent(this, DamagedActor, PlayerRef, GeneratedDamage,
-				_HitResult.Location, FVector::ZeroVector);
+				HitResult.Location, FVector::ZeroVector);
 
-			PlayerRef->AddUltimatePoints(PlayerRef->GetAddedUltimatePoints());
+			PlayerRef->AddUltimatePoints(3.0f);
 
 			// MP Passive Recharge
 			PlayerRef->PassiveMPRecharge(bIsCritical);
@@ -427,9 +427,9 @@ void UHYWeaponMechanism::DamageActor_Implementation(float _Strength, AActor* _Hi
 
 }
 
-void UHYWeaponMechanism::ToggleWeaponTrace(bool _WeaponTraceOn)
+void UHYWeaponMechanism::ToggleWeaponTrace(bool WeaponTraceOn)
 {
-	bWeaponTrace = _WeaponTraceOn;
+	bWeaponTrace = WeaponTraceOn;
 
 	// If trace is on, set up socket locations.
 	if (bWeaponTrace)
@@ -444,4 +444,9 @@ void UHYWeaponMechanism::ToggleWeaponTrace(bool _WeaponTraceOn)
 	{
 		AlreadyDamaged.Empty();
 	}
+}
+
+USkeletalMeshComponent* UHYWeaponMechanism::GetCharacterMesh()
+{
+	return WeaponRef->GetWeaponMesh();
 }

@@ -5,44 +5,52 @@
 #include "Inventory/InventoryItem.h"
 #include "Teammates/HYQuestManager.h"
 
-void UHYSaveGame::SetSaveData(FName _CharacterName, FSaveData _SaveData)
+void UHYSaveGame::SetSaveData(FName CharacterName, FSaveData NewSaveData)
 {
-	SaveData[_CharacterName] = _SaveData;
+	SaveData.FindOrAdd(CharacterName) = NewSaveData;
 }
 
-void UHYSaveGame::SetPlayerTransformInLevel(FName _CharacterName, FName _LevelName, FTransform _PlayerTransform)
+void UHYSaveGame::SaveLoreDataOnly(TMap<FName, FLore> Lore, FName CharacterName)
 {
-	SaveData[_CharacterName].SavedLevelTransform[_LevelName] = _PlayerTransform;
+	for (auto& Pair : Lore)
+	{
+		SaveData.FindOrAdd(CharacterName).LoreData.Add(Pair.Key, Pair.Value);
+	}
 }
 
-void UHYSaveGame::SetCurrency(FName _CharacterName, int32 _Currency)
+void UHYSaveGame::SetPlayerTransformInLevel(FName CharacterName, FName LevelName, FTransform PlayerTransform)
 {
-	SaveData[_CharacterName].HonbaekAmount = _Currency;
+	SaveData.FindOrAdd(CharacterName).SavedLevelTransform.FindOrAdd(LevelName) = PlayerTransform;
 }
 
-void UHYSaveGame::SetInventoryItem(FName _CharacterName, TArray<FInventoryItem> _Inventory)
+void UHYSaveGame::SetCurrency(FName CharacterName, int32 Currency)
 {
-	SaveData[_CharacterName].SavedInventoryItem = _Inventory;
+	SaveData.FindOrAdd(CharacterName).HonbaekAmount = Currency;
 }
 
-void UHYSaveGame::SetLoreData(FName _CharacterName, TMap<FName, FLore> _LoreData)
+void UHYSaveGame::SetInventoryItem(FName CharacterName, TArray<FInventoryItem> Inventory)
 {
-	SaveData[_CharacterName].LoreData = _LoreData;
+	SaveData.FindOrAdd(CharacterName).SavedInventoryItem = Inventory;
 }
 
-void UHYSaveGame::SetCheckTutorial(FName _CharacterName, TMap<FName, bool> _IsTutorialChecked)
+void UHYSaveGame::SetLoreData(FName CharacterName, TMap<FName, FLore> LoreData)
 {
-	SaveData[_CharacterName].TutorialChecked = _IsTutorialChecked;
+	SaveData.FindOrAdd(CharacterName).LoreData = LoreData;
+}
+
+void UHYSaveGame::SetCheckTutorial(FName CharacterName, TMap<FName, bool> IsTutorialChecked)
+{
+	SaveData.FindOrAdd(CharacterName).TutorialChecked = IsTutorialChecked;
 }
 
 void UHYSaveGame::UpdateClearedPuzzleData(FName CharacterName, FName ClearedPuzzleId)
 {
-	SaveData[CharacterName].ClearedPuzzle.FindOrAdd(ClearedPuzzleId);
+	SaveData.FindOrAdd(CharacterName).ClearedPuzzle.FindOrAdd(ClearedPuzzleId);
 }
 
 void UHYSaveGame::UpdateAffinityData(FName CharacterName, FName NPCName, FAffinityData AffinityAmount)
 {
-	FAffinityData AffinityLevel = SaveData[CharacterName].Affinity.FindOrAdd(NPCName);
+	FAffinityData AffinityLevel = SaveData.FindOrAdd(CharacterName).Affinity.FindOrAdd(NPCName);
 
 	AffinityLevel.AffinityLevel = AffinityAmount.AffinityLevel; // Level
 	AffinityLevel.AffinityPoint = AffinityAmount.AffinityPoint; // Point

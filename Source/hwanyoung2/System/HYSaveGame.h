@@ -156,6 +156,9 @@ public:
 
 	// Setter
 	UFUNCTION(BlueprintCallable)
+	void SaveLoreDataOnly(TMap<FName, FLore> Lore, FName CharacterName);
+
+	UFUNCTION(BlueprintCallable)
 	void SetSaveData(FName _CharacterName, FSaveData _SaveData);
 
 	UFUNCTION(BlueprintCallable)
